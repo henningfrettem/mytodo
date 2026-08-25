@@ -1,0 +1,15 @@
+# Your actual todo data and pasted images.
+#
+# This lives alongside the app rather than in it — the app writes todos.json
+# into whatever folder you point it at. It is deliberately NOT committed:
+# the repo is public, and these files contain your real notes.
+#
+# Back them up by copying the folder, or by putting it in OneDrive/Dropbox.
+todos.json
+assets/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

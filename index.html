@@ -1,0 +1,2810 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#faf8f3">
+<meta name="application-name" content="Todo">
+<title>Todo</title>
+<script>
+(function () {
+  const iconSvg =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>" +
+    "<rect x='6' y='6' width='52' height='52' rx='14' fill='#a0391c'/>" +
+    "<path d='M18 32 L28 42 L46 22' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/>" +
+    "</svg>";
+  const iconUrl = "data:image/svg+xml;utf8," + encodeURIComponent(iconSvg);
+
+  const favicon = document.createElement("link");
+  favicon.rel = "icon";
+  favicon.type = "image/svg+xml";
+  favicon.href = iconUrl;
+  document.head.appendChild(favicon);
+
+  const manifest = {
+    name: "Todo",
+    short_name: "Todo",
+    display: "standalone",
+    background_color: "#faf8f3",
+    theme_color: "#faf8f3",
+    start_url: ".",
+    icons: [{ src: iconUrl, sizes: "any", type: "image/svg+xml", purpose: "any" }]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+  const manifestLink = document.createElement("link");
+  manifestLink.rel = "manifest";
+  manifestLink.href = URL.createObjectURL(blob);
+  document.head.appendChild(manifestLink);
+})();
+</script>
+<style>
+  :root {
+    --paper: #faf8f3;
+    --paper-2: #ece7db;
+    --ink: #141108;
+    --ink-2: #2f2a22;
+    --mute: #6a6252;
+    --mute-2: #a59b87;
+    --rule: #cdc3ae;
+    --rule-soft: #ddd4be;
+    --card: #ffffff;
+    --card-hover: #ffffff;
+    --accent: #a0391c;
+    --accent-soft: #c26b43;
+    --accent-ghost: rgba(154, 63, 30, .08);
+    --ok: #4a6b3f;
+    --warn: #a87b2a;
+    --err: #8b2e1f;
+    --shadow-sm: 0 1px 0 rgba(26, 22, 18, .04);
+    --shadow-md: 0 2px 4px rgba(26, 22, 18, .06), 0 1px 0 rgba(26, 22, 18, .04);
+    --shadow-lift: 0 8px 24px rgba(26, 22, 18, .12), 0 2px 6px rgba(26, 22, 18, .08);
+    --shadow-modal: 0 20px 60px rgba(26, 22, 18, .18), 0 4px 12px rgba(26, 22, 18, .1);
+    --radius: 6px;
+    --radius-lg: 10px;
+    --r: cubic-bezier(.2, .7, .2, 1);
+    --font-body: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", Roboto, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", -apple-system, BlinkMacSystemFont, serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(1200px 600px at 20% -10%, rgba(160, 57, 28, .04), transparent 60%),
+      radial-gradient(900px 500px at 110% 110%, rgba(74, 107, 63, .03), transparent 60%);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; background: transparent; border: 0; padding: 0; }
+  kbd {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--paper-2);
+    color: var(--mute);
+    letter-spacing: .02em;
+  }
+  ::selection { background: rgba(154, 63, 30, .18); color: var(--ink); }
+
+  /* ---------- Welcome ---------- */
+  .welcome {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    padding: 24px;
+    z-index: 10;
+  }
+  .welcome-content {
+    max-width: 520px;
+    text-align: left;
+    animation: rise .5s var(--r);
+  }
+  .welcome-eyebrow {
+    font-size: 11px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin-bottom: 14px;
+  }
+  .welcome-eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 28px; height: 1px;
+    background: var(--mute-2);
+    vertical-align: middle;
+    margin-right: 12px;
+  }
+  .welcome-title {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 76px;
+    letter-spacing: -.03em;
+    line-height: 1;
+    margin: 0 0 14px;
+    font-variation-settings: "wght" 300, "opsz" 36;
+  }
+  .welcome-title em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .welcome-sub {
+    font-size: 17px;
+    color: var(--ink-2);
+    max-width: 42ch;
+    margin: 0 0 28px;
+  }
+  .welcome-actions { display: flex; gap: 10px; margin-bottom: 28px; }
+  .welcome-hint {
+    font-size: 13px;
+    color: var(--mute);
+    max-width: 52ch;
+    line-height: 1.6;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .welcome-hint code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 12px;
+    background: var(--paper-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink-2);
+  }
+  .welcome-error {
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-left: 2px solid var(--err);
+    background: rgba(139, 46, 31, .06);
+    color: var(--err);
+    font-size: 13px;
+  }
+  .welcome-unsupported {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-left: 2px solid var(--warn);
+    background: rgba(168, 123, 42, .08);
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .005em;
+    border: 1px solid transparent;
+    transition: transform .15s var(--r), background .15s var(--r), border-color .15s var(--r), box-shadow .15s var(--r);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .btn-primary:hover { background: #2c2620; }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary kbd {
+    background: rgba(255, 255, 255, .08);
+    border-color: rgba(255, 255, 255, .12);
+    color: rgba(255, 255, 255, .7);
+  }
+  .btn-accent {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-accent:hover { background: #b0492a; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-2);
+    border-color: var(--rule);
+  }
+  .btn-ghost:hover { background: var(--paper-2); border-color: var(--mute-2); }
+  .btn-danger {
+    background: transparent;
+    color: var(--err);
+    border-color: transparent;
+  }
+  .btn-danger:hover { background: rgba(139, 46, 31, .08); }
+  .iconbtn {
+    display: inline-grid; place-items: center;
+    width: 32px; height: 32px;
+    border-radius: var(--radius);
+    color: var(--mute);
+    transition: background .12s var(--r), color .12s var(--r);
+  }
+  .iconbtn:hover { background: var(--paper-2); color: var(--ink); }
+
+  /* ---------- App Layout ---------- */
+  #app {
+    height: 100vh;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 14px 24px;
+    gap: 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: rgba(243, 237, 224, .75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    position: relative;
+    z-index: 5;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-center { display: flex; justify-content: center; }
+  .topbar-right { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+
+  .brand {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -.01em;
+    color: var(--ink);
+    padding-right: 14px;
+    margin-right: 2px;
+    border-right: 1px solid var(--rule);
+    font-variation-settings: "wght" 500;
+  }
+  .brand::before {
+    content: "";
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: 10px;
+    vertical-align: middle;
+    transform: translateY(-1px);
+  }
+
+  .folder-menu {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 12px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    transition: background .12s var(--r);
+  }
+  .folder-menu:hover { background: var(--paper-2); }
+  .folder-menu svg { color: var(--mute); }
+  .folder-menu-label { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 220px;
+    background: var(--card-hover);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lift);
+    padding: 6px;
+    z-index: 100;
+    animation: drop .15s var(--r);
+  }
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    color: var(--ink);
+    text-align: left;
+  }
+  .dropdown-item:hover { background: var(--paper-2); }
+  .dropdown-item.active { background: var(--accent-ghost); color: var(--accent); }
+  .dropdown-item.active::after {
+    content: "";
+    width: 14px; height: 14px;
+    background: currentColor;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5'><polyline points='20 6 9 17 4 12'/></svg>") no-repeat center / contain;
+  }
+  .dropdown-sep { height: 1px; background: var(--rule-soft); margin: 6px 4px; }
+  .dropdown-item-muted { color: var(--mute); font-size: 12px; }
+
+  .file-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    height: 32px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    color: var(--mute);
+  }
+  .file-name {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 11.5px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 2px rgba(74, 107, 63, .15);
+    transition: background .2s, box-shadow .2s;
+  }
+  .file-dot[data-state="saving"] {
+    background: var(--warn);
+    box-shadow: 0 0 0 2px rgba(168, 123, 42, .2);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .file-dot[data-state="error"] { background: var(--err); box-shadow: 0 0 0 2px rgba(139, 46, 31, .2); }
+
+  /* ---------- Search ---------- */
+  .searchbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+    animation: slide-down .2s var(--r);
+  }
+  .searchbar svg { color: var(--mute); flex-shrink: 0; }
+  .searchbar input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    font-size: 14px;
+    outline: none;
+    padding: 4px 0;
+  }
+  .searchbar-count { color: var(--mute); font-size: 12px; }
+
+  /* ---------- Board ---------- */
+  .board {
+    display: flex;
+    gap: 14px;
+    padding: 22px 24px 28px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-padding: 24px;
+    align-items: stretch;
+  }
+  .board::-webkit-scrollbar { height: 10px; }
+  .board::-webkit-scrollbar-track { background: transparent; }
+  .board::-webkit-scrollbar-thumb { background: var(--mute-2); border-radius: 10px; border: 3px solid var(--paper); }
+
+  .column {
+    flex: 1 1 300px;
+    min-width: 280px;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-lg);
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    max-height: 100%;
+    min-height: 200px;
+    overflow: hidden;
+    transition: background .15s var(--r), border-color .15s var(--r);
+  }
+  .column.drop-target { background: #e2dcca; border-color: var(--accent-soft); }
+
+  .column-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--rule-soft);
+    position: relative;
+  }
+  .column-grip {
+    width: 12px;
+    height: 18px;
+    cursor: grab;
+    color: var(--mute-2);
+    flex-shrink: 0;
+    opacity: .5;
+    transition: opacity .15s, color .15s;
+    display: grid;
+    place-items: center;
+  }
+  .column:hover .column-grip { opacity: 1; color: var(--mute); }
+  .column-grip:active { cursor: grabbing; }
+
+  .column-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: text;
+  }
+  .column-name[contenteditable="true"] {
+    outline: none;
+    background: var(--paper);
+    padding: 2px 4px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .column-count {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--mute);
+    padding: 1px 6px;
+    background: var(--paper);
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+  }
+  .column-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: .55;
+    transition: opacity .15s;
+  }
+  .column:hover .column-actions { opacity: 1; }
+  .column-actions .iconbtn { width: 26px; height: 26px; }
+  .column-actions .iconbtn svg { width: 14px; height: 14px; }
+
+  .column-add {
+    padding: 10px 12px 6px;
+  }
+  .column-add input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius);
+    background: transparent;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color .12s var(--r), background .12s var(--r);
+  }
+  .column-add input::placeholder { color: var(--mute); }
+  .column-add input:hover { border-color: var(--mute-2); }
+  .column-add input:focus {
+    border-style: solid;
+    border-color: var(--accent);
+    background: var(--card-hover);
+  }
+
+  .column-tasks {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 12px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 40px;
+  }
+  .column-tasks::-webkit-scrollbar { width: 8px; }
+  .column-tasks::-webkit-scrollbar-track { background: transparent; }
+  .column-tasks::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+  .column-tasks::-webkit-scrollbar-thumb:hover { background: var(--mute-2); background-clip: padding-box; border: 2px solid transparent; }
+
+  .column-empty {
+    padding: 18px 10px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--mute);
+    font-style: italic;
+    letter-spacing: .01em;
+  }
+
+  /* ---------- Task card ---------- */
+  .task {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 10px 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: background .12s var(--r), border-color .12s var(--r), box-shadow .15s var(--r), transform .15s var(--r), opacity .2s;
+    animation: card-in .25s var(--r) both;
+  }
+  .task:hover {
+    background: var(--card-hover);
+    border-color: var(--rule);
+    box-shadow: var(--shadow-md);
+  }
+  .task.dragging {
+    opacity: .4;
+  }
+  .task.drag-preview {
+    box-shadow: var(--shadow-lift);
+    transform: rotate(1.5deg);
+    background: var(--card-hover);
+  }
+  .task-grip {
+    flex-shrink: 0;
+    width: 8px;
+    color: var(--mute-2);
+    cursor: grab;
+    padding-top: 2px;
+    opacity: 0;
+    transition: opacity .12s;
+    margin-left: -4px;
+  }
+  .task:hover .task-grip { opacity: 1; }
+  .task-grip:active { cursor: grabbing; }
+
+  .task-check {
+    flex-shrink: 0;
+    width: 16px; height: 16px;
+    margin-top: 2px;
+    border: 1.5px solid var(--mute-2);
+    border-radius: 4px;
+    display: grid; place-items: center;
+    transition: all .15s var(--r);
+    background: transparent;
+  }
+  .task-check:hover {
+    border-color: var(--accent);
+    background: var(--accent-ghost);
+  }
+  .task-check svg {
+    width: 10px; height: 10px;
+    color: #fff;
+    opacity: 0;
+    transform: scale(.5);
+    transition: opacity .15s var(--r), transform .15s var(--r);
+  }
+  .task.done .task-check {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .task.done .task-check svg { opacity: 1; transform: scale(1); }
+  .task.done {
+    opacity: .5;
+    background: transparent;
+  }
+  .task.done .task-subject { text-decoration: line-through; color: var(--mute); }
+
+  .task-body { flex: 1; min-width: 0; }
+  .task-subject {
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+    transition: color .15s var(--r);
+  }
+  .task-indicator {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--mute);
+  }
+  .task-indicator svg { width: 11px; height: 11px; }
+  .task-delete {
+    position: absolute;
+    right: 6px; top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    width: 24px; height: 24px;
+    border-radius: 4px;
+    display: grid; place-items: center;
+    color: var(--mute);
+    transition: opacity .12s, background .12s, color .12s;
+  }
+  .task:hover .task-delete { opacity: 1; }
+  .task-delete:hover { background: rgba(139, 46, 31, .08); color: var(--err); }
+
+  .task-search-match {
+    background: rgba(194, 107, 67, .08);
+    border-color: var(--accent-soft);
+  }
+
+  .task.important {
+    background: #fce4db;
+    border-color: #edbaa7;
+    box-shadow: 0 1px 0 rgba(160, 57, 28, .04);
+  }
+  .task.important:hover {
+    background: #fcece5;
+    border-color: #e6a892;
+  }
+  .task.done.important { background: transparent; border-color: var(--rule-soft); }
+
+  .task-star {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    color: var(--mute-2);
+    border-radius: 4px;
+    opacity: 0;
+    margin-top: 0;
+    align-self: flex-start;
+    transition: opacity .12s, color .12s, background .12s;
+  }
+  .task:hover .task-star { opacity: .55; }
+  .task-star:hover { opacity: 1 !important; color: var(--accent); background: var(--accent-ghost); }
+  .task-star.on { opacity: 1; color: var(--accent); }
+  .task-star.on svg polygon { fill: currentColor; }
+
+  .modal-star {
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    z-index: 2;
+    color: var(--mute-2);
+    transition: color .12s, background .12s;
+  }
+  .modal-star:hover { color: var(--accent); background: var(--accent-ghost); }
+  .modal-star.on { color: var(--accent); }
+  .modal-star.on svg polygon { fill: currentColor; }
+
+  /* Drop marker shown between cards while dragging */
+  .drop-marker {
+    height: 2px;
+    background: var(--accent);
+    margin: 2px 0;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(154, 63, 30, .2);
+    animation: marker-in .12s var(--r);
+  }
+
+  /* ---------- Completed section ---------- */
+  .completed-section { padding: 4px 12px 12px; border-top: 1px solid var(--rule-soft); margin-top: 6px; }
+  .completed-toggle {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%;
+    padding: 6px 4px;
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--mute);
+    transition: color .12s;
+  }
+  .completed-toggle:hover { color: var(--ink-2); }
+  .completed-toggle svg {
+    width: 12px; height: 12px;
+    transition: transform .15s var(--r);
+  }
+  .completed-section.open .completed-toggle svg { transform: rotate(90deg); }
+  .completed-list {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+  }
+  .completed-section.open .completed-list { display: flex; }
+
+  /* ---------- Add-column tile ---------- */
+  .add-column {
+    flex: 0 0 64px;
+    align-self: stretch;
+    border: 1.5px dashed var(--rule);
+    border-radius: var(--radius-lg);
+    display: grid;
+    place-items: center;
+    color: var(--mute);
+    transition: all .15s var(--r);
+    cursor: pointer;
+    min-height: 180px;
+  }
+  .add-column:hover {
+    border-color: var(--accent-soft);
+    color: var(--accent);
+    flex-basis: 120px;
+    background: var(--accent-ghost);
+  }
+  .add-column svg { width: 20px; height: 20px; }
+
+  /* ---------- Modals ---------- */
+  .modal {
+    position: fixed; inset: 0;
+    z-index: 200;
+    display: grid; place-items: center;
+    padding: 24px;
+  }
+  .modal-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(26, 22, 18, .28);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: fade-in .2s;
+  }
+  .modal-panel {
+    position: relative;
+    background: var(--card-hover);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-modal);
+    width: 680px;
+    max-width: 100%;
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: pop .2s var(--r);
+  }
+  .modal-panel-compact {
+    width: 520px;
+  }
+  .modal-panel-sm {
+    width: 440px;
+  }
+  .modal-close {
+    position: absolute;
+    top: 10px; right: 10px;
+    z-index: 2;
+  }
+
+  /* Task modal */
+  .task-subject-input {
+    width: 100%;
+    border: 0;
+    outline: none;
+    padding: 26px 56px 8px 30px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -.01em;
+    background: transparent;
+    color: var(--ink);
+    font-variation-settings: "wght" 500, "opsz" 20;
+    display: block;
+    resize: none;
+    overflow: hidden;
+    line-height: 1.25;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    field-sizing: content;
+  }
+  .task-subject-input::placeholder { color: var(--mute-2); }
+
+  .md-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 26px 10px;
+    border-bottom: 1px solid var(--rule-soft);
+    position: relative;
+  }
+  .md-tabs { display: flex; gap: 2px; margin-right: auto; }
+  .md-tab {
+    position: relative;
+    padding: 6px 10px;
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--mute);
+    border-radius: 4px;
+    transition: color .12s;
+  }
+  .md-tab:hover { color: var(--ink-2); }
+  .md-tab.active { color: var(--ink); }
+  .md-tab.active::after {
+    content: "";
+    position: absolute;
+    left: 10px; right: 10px; bottom: -11px;
+    height: 1.5px;
+    background: var(--accent);
+  }
+  .md-actions { display: flex; gap: 2px; transition: opacity .15s; }
+  .md-toolbar.in-preview .md-actions { opacity: .25; pointer-events: none; }
+  .md-btn {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    color: var(--ink-2);
+    font-size: 13px;
+    transition: background .12s;
+  }
+  .md-btn:hover { background: var(--paper-2); }
+  .md-btn svg { width: 14px; height: 14px; }
+  .md-sep { width: 1px; background: var(--rule-soft); margin: 4px 4px; }
+
+  .task-preview {
+    padding: 18px 30px 30px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    flex: 1;
+    min-height: 200px;
+    overflow-y: auto;
+    cursor: text;
+  }
+  .task-preview:empty::before,
+  .task-preview.is-empty::before {
+    content: "No description yet. Click to add notes.";
+    font-style: italic;
+    color: var(--mute);
+  }
+
+  .task-desc {
+    border: 0;
+    outline: none;
+    padding: 16px 30px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    resize: none;
+    flex: 1;
+    min-height: 200px;
+    background: transparent;
+    overflow-y: auto;
+  }
+  .task-desc::placeholder { color: var(--mute-2); font-style: italic; }
+
+  .task-footer {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    border-top: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+  }
+  .task-meta {
+    font-size: 11px;
+    color: var(--mute);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: .01em;
+  }
+  .task-meta span { color: var(--ink-2); }
+
+  .select {
+    height: 30px;
+    padding: 0 26px 0 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--card-hover);
+    font-size: 13px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8070' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+    cursor: pointer;
+  }
+  .select:focus { outline: 2px solid var(--accent-ghost); border-color: var(--accent); }
+
+  /* Quick modal */
+  .quick-input {
+    width: 100%;
+    border: 0;
+    outline: none;
+    padding: 22px 24px 14px;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 400;
+    letter-spacing: -.005em;
+    background: transparent;
+    color: var(--ink);
+  }
+  .quick-input::placeholder { color: var(--mute-2); }
+  .quick-desc-area {
+    padding: 0 24px 12px;
+    border-top: 1px solid var(--rule-soft);
+    padding-top: 10px;
+  }
+  .quick-desc-area textarea {
+    width: 100%;
+    border: 0;
+    outline: none;
+    resize: none;
+    font-family: var(--font-body);
+    font-size: 13px;
+    min-height: 80px;
+    background: transparent;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+  .quick-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px 12px 24px;
+    background: var(--paper-2);
+    border-top: 1px solid var(--rule-soft);
+    gap: 12px;
+  }
+  .quick-toggle-desc {
+    font-size: 12px;
+    color: var(--mute);
+    padding: 4px 6px;
+    border-radius: 4px;
+  }
+  .quick-toggle-desc:hover { background: var(--paper); color: var(--ink-2); }
+  .quick-hint {
+    font-size: 11px;
+    color: var(--mute);
+    letter-spacing: .01em;
+  }
+  .quick-hint kbd { font-size: 10px; padding: 1px 5px; }
+
+  /* Folder modal */
+  .folders-header {
+    padding: 20px 24px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .folders-header h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0 0 4px;
+    letter-spacing: -.005em;
+  }
+  .folders-header p { margin: 0; font-size: 12px; color: var(--mute); }
+  .folders-list {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 8px 12px;
+  }
+  .folder-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+  }
+  .folder-row:hover { background: var(--paper-2); }
+  .folder-row-name {
+    flex: 1;
+    font-size: 14px;
+    outline: none;
+    padding: 2px 4px;
+    border-radius: 3px;
+    min-width: 0;
+  }
+  .folder-row-name:focus { background: var(--card-hover); box-shadow: 0 0 0 1px var(--accent); }
+  .folder-row-meta { font-size: 11px; color: var(--mute); }
+  .folders-add {
+    padding: 12px 24px;
+    border-top: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+    display: flex;
+    gap: 8px;
+  }
+  .folders-add input {
+    flex: 1;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--card-hover);
+    font-size: 13px;
+    outline: none;
+  }
+  .folders-add input:focus { border-color: var(--accent); outline: 2px solid var(--accent-ghost); }
+
+  /* ---------- Category settings ---------- */
+  .cat-field {
+    padding: 18px 24px 6px;
+  }
+  .cat-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--mute);
+    margin-bottom: 8px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .cat-field input {
+    width: 100%;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--card-hover);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .cat-field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ghost);
+  }
+
+  /* ---------- Confirm dialog ---------- */
+  .confirm-body { padding: 24px; }
+  .confirm-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 8px;
+  }
+  .confirm-text { margin: 0 0 16px; font-size: 13.5px; color: var(--ink-2); line-height: 1.55; }
+  .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ---------- Toasts ---------- */
+  .toasts {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 300;
+    pointer-events: none;
+  }
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 12px 10px 16px;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-modal);
+    font-size: 13px;
+    animation: toast-in .25s var(--r);
+    pointer-events: auto;
+    min-width: 260px;
+  }
+  .toast-msg { flex: 1; }
+  .toast-action {
+    font-size: 12px;
+    color: var(--accent-soft);
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .toast-action:hover { background: rgba(255, 255, 255, .08); }
+  .toast-close { color: rgba(255, 255, 255, .5); padding: 4px; }
+  .toast-close:hover { color: #fff; }
+  .toast.exit { animation: toast-out .2s var(--r) forwards; }
+
+  .error-banner {
+    padding: 10px 24px;
+    background: rgba(139, 46, 31, .08);
+    border-bottom: 1px solid rgba(139, 46, 31, .2);
+    color: var(--err);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .error-banner button { color: var(--err); font-weight: 600; font-size: 12px; padding: 2px 6px; border-radius: 3px; }
+  .error-banner button:hover { background: rgba(139, 46, 31, .1); }
+
+  /* ---------- Markdown rendered preview ---------- */
+  .md p { margin: 0 0 .8em; }
+  .md p:last-child { margin-bottom: 0; }
+  .md ul, .md ol { margin: 0 0 .8em; padding-left: 1.3em; }
+  .md li { margin-bottom: .2em; }
+  .md strong { font-weight: 600; color: var(--ink); }
+  .md em { font-style: italic; }
+  .md a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .md img {
+    max-width: 100%;
+    border-radius: var(--radius);
+    border: 1px solid var(--rule-soft);
+    margin: .4em 0;
+    display: block;
+  }
+
+  /* ---------- Animations ---------- */
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes slide-down { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
+  @keyframes card-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @keyframes marker-in { from { transform: scaleX(.2); } to { transform: scaleX(1); } }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(168, 123, 42, .2); }
+    50% { box-shadow: 0 0 0 6px rgba(168, 123, 42, .05); }
+  }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="welcome" class="welcome" hidden>
+  <div class="welcome-content">
+    <div class="welcome-eyebrow">A quiet place for lists</div>
+    <h1 class="welcome-title">Todo<em>.</em></h1>
+    <p class="welcome-sub">Pick a folder on your laptop. The app will keep a <code style="font-family:ui-monospace,Consolas,monospace;font-size:.85em;background:var(--paper-2);padding:1px 4px;border-radius:3px;">todos.json</code> file inside, along with any images you paste. Move the folder, and everything moves with it.</p>
+    <div class="welcome-actions">
+      <button id="btn-pick-folder" class="btn btn-primary">Choose a folder</button>
+    </div>
+    <p class="welcome-hint">Your tasks never leave your machine. There's no account, no sync, no tracking. If you lose the folder, you lose the todos — back it up by copying the folder somewhere, or put it inside OneDrive/Dropbox if you want that sort of thing.</p>
+    <div id="welcome-error" class="welcome-error" hidden></div>
+    <div id="welcome-unsupported" class="welcome-unsupported" hidden>
+      <strong>This browser can't do direct file access.</strong>
+      Use Microsoft Edge or Google Chrome on Windows/Mac. The File System Access API isn't in Firefox or Safari yet.
+    </div>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand">Todo</div>
+      <div style="position:relative" id="folder-menu-wrap">
+        <button id="folder-menu" class="folder-menu" aria-haspopup="true">
+          <span class="folder-menu-label" id="folder-menu-label">Personal</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="topbar-center">
+      <button id="btn-new-task" class="btn btn-primary">
+        New task <kbd>N</kbd>
+      </button>
+    </div>
+    <div class="topbar-right">
+      <button id="btn-search" class="iconbtn" aria-label="Search (Ctrl F)" title="Search (Ctrl F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+      <div class="file-status" id="file-status">
+        <span class="file-name" id="file-name">-</span>
+        <span class="file-dot" id="file-dot" data-state="saved"></span>
+      </div>
+    </div>
+  </header>
+
+  <div id="error-banner" class="error-banner" hidden>
+    <span id="error-banner-msg"></span>
+    <button id="error-banner-action">Re-pick folder</button>
+  </div>
+
+  <div id="search-bar" class="searchbar" hidden>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="search-input" placeholder="Search by subject or description" autocomplete="off">
+    <span class="searchbar-count" id="search-count"></span>
+    <button class="iconbtn" id="search-close" aria-label="Close search" title="Close (Esc)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+
+  <main id="board" class="board"></main>
+</div>
+
+<!-- Task detail modal -->
+<div id="task-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close="task"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="task-subject">
+    <button class="iconbtn modal-close" data-close="task" aria-label="Close (Esc)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <button class="iconbtn modal-star" id="task-star-modal" aria-label="Mark important" title="Mark important">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </button>
+    <textarea id="task-subject" class="task-subject-input" placeholder="Task subject" rows="1" maxlength="500" spellcheck="false"></textarea>
+    <div class="md-toolbar" id="md-toolbar" role="toolbar" aria-label="Formatting">
+      <div class="md-tabs" role="tablist">
+        <button class="md-tab active" data-mode="write" role="tab" aria-selected="true">Write</button>
+        <button class="md-tab" data-mode="preview" role="tab" aria-selected="false">Preview</button>
+      </div>
+      <div class="md-actions">
+        <button class="md-btn" data-md="bold" title="Bold (Ctrl+B)" aria-label="Bold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+        <button class="md-btn" data-md="italic" title="Italic (Ctrl+I)" aria-label="Italic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="11" y2="5"/><line x1="13" y1="19" x2="5" y2="19"/><line x1="15" y1="5" x2="9" y2="19"/></svg></button>
+        <div class="md-sep"></div>
+        <button class="md-btn" data-md="ul" title="Bulleted list" aria-label="Bulleted list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg></button>
+        <button class="md-btn" data-md="ol" title="Numbered list" aria-label="Numbered list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><path d="M4 6h1v4" stroke-width="1.8"/><path d="M3 12h3l-3 3.5h3" stroke-width="1.8"/><path d="M3 18h2.5a1 1 0 0 1 0 2H3v-2" stroke-width="1.8" fill="none"/></svg></button>
+        <div class="md-sep"></div>
+        <button class="md-btn" data-md="image" title="Insert image" aria-label="Insert image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
+      </div>
+    </div>
+    <textarea id="task-desc" class="task-desc" placeholder="Notes, context, links... (supports **bold**, *italic*, and lists. Paste images directly.)"></textarea>
+    <div id="task-preview" class="task-preview md" hidden></div>
+    <footer class="task-footer">
+      <select id="task-category" class="select"></select>
+      <span class="task-meta" id="task-meta"></span>
+      <button id="task-delete" class="btn btn-danger">Delete</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Quick-add modal -->
+<div id="quick-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close="quick"></div>
+  <div class="modal-panel modal-panel-compact" role="dialog" aria-modal="true" aria-label="Quick add task">
+    <input id="quick-subject" class="quick-input" placeholder="What needs doing?" autocomplete="off">
+    <div id="quick-desc-area" class="quick-desc-area" hidden>
+      <textarea id="quick-desc" placeholder="Details (optional)"></textarea>
+    </div>
+    <footer class="quick-footer">
+      <div style="display:flex;align-items:center;gap:10px">
+        <select id="quick-category" class="select"></select>
+        <button id="quick-desc-toggle" class="quick-toggle-desc">+ description</button>
+      </div>
+      <span class="quick-hint"><kbd>Enter</kbd> to add, <kbd>Esc</kbd> to cancel</span>
+    </footer>
+  </div>
+</div>
+
+<!-- Folder management modal -->
+<div id="folders-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close="folders"></div>
+  <div class="modal-panel modal-panel-compact" role="dialog" aria-modal="true" aria-labelledby="folders-title">
+    <button class="iconbtn modal-close" data-close="folders" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <div class="folders-header">
+      <h2 id="folders-title">Folders</h2>
+      <p>Rename by clicking a name. Delete with the icon on hover.</p>
+    </div>
+    <div class="folders-list" id="folders-list"></div>
+    <div class="folders-add">
+      <input id="folder-new-name" placeholder="New folder name" maxlength="60">
+      <button id="folder-create" class="btn btn-ghost">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category settings modal -->
+<div id="category-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close="category"></div>
+  <div class="modal-panel modal-panel-sm" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+    <button class="iconbtn modal-close" data-close="category" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="folders-header">
+      <h2 id="category-modal-title">Category settings</h2>
+      <p id="category-modal-sub">Rename this category, or remove it.</p>
+    </div>
+    <div class="cat-field">
+      <label for="category-name-input">Name</label>
+      <input id="category-name-input" type="text" maxlength="60" autocomplete="off">
+    </div>
+    <footer class="task-footer">
+      <button id="category-delete" class="btn btn-danger">Delete category</button>
+      <span></span>
+      <button id="category-save" class="btn btn-primary">Save</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div id="confirm-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close="confirm"></div>
+  <div class="modal-panel modal-panel-sm" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="confirm-body">
+      <h3 class="confirm-title" id="confirm-title"></h3>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
+        <button class="btn btn-accent" id="confirm-ok">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+/* ==================================================================
+   Todo — single-file local todo app
+   ================================================================== */
+(() => {
+"use strict";
+
+/* ---------- Utilities ---------- */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k === "dataset") Object.assign(n.dataset, v);
+    else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
+    else if (k === "style" && typeof v === "object") Object.assign(n.style, v);
+    else if (v === true) n.setAttribute(k, "");
+    else if (v === false || v == null) {}
+    else n.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) {
+    if (k == null || k === false) continue;
+    n.append(k.nodeType ? k : document.createTextNode(String(k)));
+  }
+  return n;
+};
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+  : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+    }));
+const debounce = (fn, ms) => {
+  let t;
+  const wrapped = (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+  wrapped.flush = () => { clearTimeout(t); };
+  return wrapped;
+};
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const fmtDate = iso => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+};
+
+/* ---------- IndexedDB for handle persistence ---------- */
+const IDB_NAME = "todo-app";
+const IDB_STORE = "handles";
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbSet(key, val) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).put(val, key);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbDel(key) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* ---------- File system operations ---------- */
+let dirHandle = null;
+let lastWrittenSnapshot = "";
+let lastExternalMtime = 0;
+const imageUrlCache = new Map(); // path -> object URL
+
+async function ensurePermission(handle, mode = "readwrite") {
+  const opts = { mode };
+  if ((await handle.queryPermission(opts)) === "granted") return true;
+  if ((await handle.requestPermission(opts)) === "granted") return true;
+  return false;
+}
+
+async function loadJson() {
+  const fileHandle = await dirHandle.getFileHandle("todos.json", { create: true });
+  const file = await fileHandle.getFile();
+  lastExternalMtime = file.lastModified;
+  if (file.size === 0) {
+    const fresh = defaultData();
+    await writeJsonNow(fresh);
+    return fresh;
+  }
+  const text = await file.text();
+  try {
+    const parsed = JSON.parse(text);
+    return migrate(parsed);
+  } catch (e) {
+    throw new Error("todos.json is not valid JSON. Back it up and try again.");
+  }
+}
+
+async function writeJsonNow(data) {
+  if (!dirHandle) return;
+  const serialized = JSON.stringify(data, null, 2);
+  if (serialized === lastWrittenSnapshot) return;
+  setFileStatus("saving");
+  try {
+    const current = await dirHandle.getFileHandle("todos.json", { create: true });
+    const existing = await current.getFile();
+    if (lastExternalMtime && existing.lastModified > lastExternalMtime + 500 && existing.size > 0) {
+      // external change detected
+      setFileStatus("error");
+      showExternalConflict();
+      return;
+    }
+    const writable = await current.createWritable();
+    await writable.write(serialized);
+    await writable.close();
+    lastWrittenSnapshot = serialized;
+    const after = await current.getFile();
+    lastExternalMtime = after.lastModified;
+    setFileStatus("saved");
+  } catch (e) {
+    console.error(e);
+    setFileStatus("error");
+    showErrorBanner("Couldn't save to todos.json. The file may have been moved or permissions revoked.");
+  }
+}
+const writeJson = debounce(writeJsonNow, 300);
+
+async function writeImage(blob, ext) {
+  if (!dirHandle) throw new Error("No folder");
+  const assetsDir = await dirHandle.getDirectoryHandle("assets", { create: true });
+  const name = `${uuid()}.${ext}`;
+  const fh = await assetsDir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(blob);
+  await w.close();
+  return `assets/${name}`;
+}
+
+async function resolveImage(path) {
+  if (imageUrlCache.has(path)) return imageUrlCache.get(path);
+  if (!dirHandle) return "";
+  try {
+    const parts = path.split("/");
+    let h = dirHandle;
+    for (let i = 0; i < parts.length - 1; i++) h = await h.getDirectoryHandle(parts[i]);
+    const fh = await h.getFileHandle(parts[parts.length - 1]);
+    const f = await fh.getFile();
+    const url = URL.createObjectURL(f);
+    imageUrlCache.set(path, url);
+    return url;
+  } catch (e) {
+    return "";
+  }
+}
+
+/* ---------- Data model ---------- */
+function defaultData() {
+  const folderId = uuid();
+  const cats = [
+    { id: uuid(), name: "Today" },
+    { id: uuid(), name: "This week" },
+    { id: uuid(), name: "Someday" }
+  ];
+  return {
+    version: 2,
+    folders: [{ id: folderId, name: "Personal", categories: cats }],
+    tasks: [],
+    activeFolderId: folderId
+  };
+}
+
+function migrate(data) {
+  if (!data || typeof data !== "object") return defaultData();
+  if (!Array.isArray(data.folders) || data.folders.length === 0) {
+    const d = defaultData();
+    if (Array.isArray(data.tasks)) d.tasks = data.tasks;
+    return d;
+  }
+  if (!Array.isArray(data.tasks)) data.tasks = [];
+  if (!data.activeFolderId || !data.folders.find(f => f.id === data.activeFolderId)) {
+    data.activeFolderId = data.folders[0].id;
+  }
+  data.version = 2;
+  return data;
+}
+
+let state = null;
+let dirty = false;
+
+function save() {
+  dirty = true;
+  writeJson(state);
+}
+
+/* ---------- Markdown renderer (mini) ---------- */
+// Supports: **bold**, *italic*, _italic_, bulleted (- or *), numbered (1.), [link](url), ![img](path), paragraphs/line breaks
+function renderMarkdown(src) {
+  if (!src) return "";
+  const lines = src.replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
+  let i = 0;
+  const inline = s => {
+    let t = escapeHtml(s);
+    // images first (so they don't clash with links)
+    t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, url) => {
+      const safeUrl = /^(assets\/|https?:|data:)/i.test(url) ? url : "#";
+      return `<img data-src="${escapeHtml(safeUrl)}" alt="${alt}" loading="lazy">`;
+    });
+    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (m, text, url) =>
+      `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`);
+    // auto-link bare URLs (skip content inside existing anchors and any tag attributes)
+    t = t.split(/(<a\s[^>]*>[\s\S]*?<\/a>)/gi).map((part, ai) => {
+      if (ai % 2 === 1) return part;
+      return part.split(/(<[^>]+>)/g).map((seg, si) => {
+        if (si % 2 === 1) return seg;
+        return seg.replace(/(https?:\/\/[^\s<>"'`)\],]+)/g, m => {
+          const trail = m.match(/[.,;:!?]+$/);
+          const suffix = trail ? trail[0] : "";
+          const url = suffix ? m.slice(0, -suffix.length) : m;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${suffix}`;
+        });
+      }).join("");
+    }).join("");
+    t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/(^|[^*\w])\*([^*\n]+)\*(?=[^*\w]|$)/g, "$1<em>$2</em>");
+    t = t.replace(/(^|[^\w_])_([^_\n]+)_(?=[^\w_]|$)/g, "$1<em>$2</em>");
+    return t;
+  };
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*$/.test(line)) { i++; continue; }
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(inline(lines[i].replace(/^\s*[-*]\s+/, "")));
+        i++;
+      }
+      out.push(`<ul>${items.map(x => `<li>${x}</li>`).join("")}</ul>`);
+      continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(inline(lines[i].replace(/^\s*\d+\.\s+/, "")));
+        i++;
+      }
+      out.push(`<ol>${items.map(x => `<li>${x}</li>`).join("")}</ol>`);
+      continue;
+    }
+    // paragraph — gather until blank or list
+    const para = [line];
+    i++;
+    while (i < lines.length && lines[i].trim() !== "" && !/^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
+      para.push(lines[i]);
+      i++;
+    }
+    out.push(`<p>${para.map(inline).join("<br>")}</p>`);
+  }
+  return out.join("");
+}
+
+async function hydrateImages(container) {
+  const imgs = container.querySelectorAll("img[data-src]");
+  for (const img of imgs) {
+    const src = img.dataset.src;
+    if (/^assets\//i.test(src)) {
+      const url = await resolveImage(src);
+      if (url) img.src = url;
+    } else {
+      img.src = src;
+    }
+    img.removeAttribute("data-src");
+  }
+}
+
+/* ---------- File status + banners ---------- */
+const fileDot = $("#file-dot");
+const fileName = $("#file-name");
+function setFileStatus(s) {
+  fileDot.dataset.state = s;
+}
+
+const errorBanner = $("#error-banner");
+const errorBannerMsg = $("#error-banner-msg");
+function showErrorBanner(msg, action = null) {
+  errorBanner.hidden = false;
+  errorBannerMsg.textContent = msg;
+  const btn = $("#error-banner-action");
+  btn.textContent = action?.label || "Re-pick folder";
+  btn.onclick = action?.handler || pickDirectory;
+}
+function hideErrorBanner() { errorBanner.hidden = true; }
+
+function showExternalConflict() {
+  showErrorBanner("todos.json was modified outside this app. Reload to pick up the changes (your in-memory changes will be lost).", {
+    label: "Reload", handler: () => location.reload()
+  });
+}
+
+/* ---------- Toast ---------- */
+const toastsRoot = $("#toasts");
+function toast(msg, { actionLabel, onAction, duration = 5000 } = {}) {
+  const t = el("div", { class: "toast" },
+    el("span", { class: "toast-msg" }, msg),
+    actionLabel ? el("button", { class: "toast-action", onclick: () => { onAction?.(); dismiss(); } }, actionLabel) : null,
+    el("button", {
+      class: "toast-close", "aria-label": "Dismiss",
+      onclick: () => dismiss()
+    },
+      el("span", {}, "×")
+    )
+  );
+  toastsRoot.append(t);
+  const timer = setTimeout(dismiss, duration);
+  function dismiss() {
+    clearTimeout(timer);
+    t.classList.add("exit");
+    t.addEventListener("animationend", () => t.remove(), { once: true });
+  }
+  return { dismiss };
+}
+
+/* ---------- Confirm dialog ---------- */
+function confirm({ title, text, okLabel = "Delete", danger = true }) {
+  return new Promise(resolve => {
+    const m = $("#confirm-modal");
+    $("#confirm-title").textContent = title;
+    $("#confirm-text").textContent = text;
+    const ok = $("#confirm-ok");
+    const cancel = $("#confirm-cancel");
+    ok.textContent = okLabel;
+    ok.className = "btn " + (danger ? "btn-accent" : "btn-primary");
+    m.hidden = false;
+    const done = v => {
+      m.hidden = true;
+      ok.onclick = cancel.onclick = null;
+      const bd = m.querySelector(".modal-backdrop");
+      bd.onclick = null;
+      document.removeEventListener("keydown", keyh);
+      resolve(v);
+    };
+    ok.onclick = () => done(true);
+    cancel.onclick = () => done(false);
+    m.querySelector(".modal-backdrop").onclick = () => done(false);
+    const keyh = e => { if (e.key === "Escape") done(false); };
+    document.addEventListener("keydown", keyh);
+    setTimeout(() => cancel.focus(), 10);
+  });
+}
+
+/* ---------- Folder selector dropdown ---------- */
+const folderMenu = $("#folder-menu");
+const folderMenuLabel = $("#folder-menu-label");
+const folderMenuWrap = $("#folder-menu-wrap");
+
+folderMenu.addEventListener("click", e => {
+  e.stopPropagation();
+  const existing = folderMenuWrap.querySelector(".dropdown");
+  if (existing) { existing.remove(); return; }
+  const dd = el("div", { class: "dropdown", role: "menu" });
+  for (const f of state.folders) {
+    dd.append(el("button", {
+      class: "dropdown-item" + (f.id === state.activeFolderId ? " active" : ""),
+      role: "menuitem",
+      onclick: () => {
+        state.activeFolderId = f.id;
+        save();
+        renderBoard();
+        updateFolderLabel();
+        dd.remove();
+      }
+    }, f.name));
+  }
+  dd.append(el("div", { class: "dropdown-sep" }));
+  dd.append(el("button", {
+    class: "dropdown-item dropdown-item-muted", role: "menuitem",
+    onclick: () => { dd.remove(); openFoldersModal(); }
+  }, "Manage folders…"));
+  dd.append(el("button", {
+    class: "dropdown-item dropdown-item-muted", role: "menuitem",
+    onclick: () => { dd.remove(); clearCompletedPrompt(); }
+  }, "Clear completed > 90 days…"));
+  folderMenuWrap.append(dd);
+  const closeOnOutside = ev => {
+    if (!dd.contains(ev.target) && !folderMenu.contains(ev.target)) {
+      dd.remove();
+      document.removeEventListener("click", closeOnOutside);
+    }
+  };
+  setTimeout(() => document.addEventListener("click", closeOnOutside), 0);
+});
+
+function updateFolderLabel() {
+  const f = currentFolder();
+  folderMenuLabel.textContent = f ? f.name : "—";
+}
+
+function currentFolder() {
+  return state.folders.find(f => f.id === state.activeFolderId);
+}
+
+/* ---------- Board rendering ---------- */
+const boardEl = $("#board");
+let searchQuery = "";
+
+function tasksForCategory(catId, { completed = false } = {}) {
+  return state.tasks.filter(t => t.categoryId === catId && !!t.completed === completed);
+}
+
+function renderBoard() {
+  boardEl.innerHTML = "";
+  imageUrlCache.clear();
+  const folder = currentFolder();
+  if (!folder) return;
+  for (const cat of folder.categories) {
+    boardEl.append(renderColumn(folder, cat));
+  }
+  boardEl.append(renderAddColumn(folder));
+}
+
+function renderColumn(folder, cat) {
+  const col = el("div", {
+    class: "column",
+    dataset: { categoryId: cat.id },
+    "data-category-id": cat.id
+  });
+
+  const openTasks = tasksForCategory(cat.id, { completed: false });
+  const doneTasks = tasksForCategory(cat.id, { completed: true });
+
+  const headerName = el("div", {
+    class: "column-name",
+    spellcheck: "false",
+    onclick: e => e.stopPropagation()
+  }, cat.name);
+
+  headerName.addEventListener("dblclick", () => {
+    headerName.contentEditable = "true";
+    headerName.focus();
+    document.getSelection().selectAllChildren(headerName);
+  });
+  headerName.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); headerName.blur(); }
+    if (e.key === "Escape") { headerName.textContent = cat.name; headerName.blur(); }
+  });
+  headerName.addEventListener("blur", () => {
+    const newName = headerName.textContent.trim().slice(0, 60);
+    headerName.contentEditable = "false";
+    if (newName && newName !== cat.name) { cat.name = newName; save(); }
+    else headerName.textContent = cat.name;
+  });
+
+  const header = el("div", { class: "column-header" },
+    el("div", { class: "column-grip", draggable: "true", title: "Drag column" },
+      svg("grip", 10, 16)
+    ),
+    headerName,
+    el("span", { class: "column-count" }, String(openTasks.length)),
+    el("div", { class: "column-actions" },
+      el("button", {
+        class: "iconbtn", "aria-label": "Category settings", title: "Category settings",
+        onclick: e => { e.stopPropagation(); openCategoryModal(folder, cat); }
+      }, svg("gear", 14, 14))
+    )
+  );
+  // column drag-reorder
+  const grip = header.querySelector(".column-grip");
+  grip.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/x-column", cat.id);
+    e.dataTransfer.effectAllowed = "move";
+    col.classList.add("dragging");
+    draggedColumnId = cat.id;
+  });
+  grip.addEventListener("dragend", () => {
+    col.classList.remove("dragging");
+    draggedColumnId = null;
+    clearDropMarkers();
+  });
+
+  // quick-add input
+  const addInput = el("input", {
+    type: "text",
+    placeholder: "+ add task",
+    maxlength: "300",
+    onkeydown: e => {
+      if (e.key === "Enter") {
+        const v = addInput.value.trim();
+        if (v) {
+          createTask({ categoryId: cat.id, subject: v });
+          addInput.value = "";
+        }
+      } else if (e.key === "Escape") {
+        addInput.value = "";
+        addInput.blur();
+      }
+    }
+  });
+  const addWrap = el("div", { class: "column-add" }, addInput);
+
+  const taskList = el("div", { class: "column-tasks", dataset: { taskList: cat.id } });
+  if (openTasks.length === 0 && !doneTasks.length) {
+    taskList.append(el("div", { class: "column-empty" }, placeholderLine(cat.name)));
+  } else if (openTasks.length === 0) {
+    taskList.append(el("div", { class: "column-empty" }, "All done here."));
+  } else {
+    for (const task of openTasks) taskList.append(renderTaskCard(task));
+  }
+
+  const completedSection = renderCompletedSection(cat, doneTasks);
+
+  col.append(header, addWrap, taskList, completedSection);
+
+  setupColumnDropZones(col, cat, taskList);
+
+  return col;
+}
+
+function placeholderLine(name) {
+  const lines = {
+    "today": "The day's first thing.",
+    "this week": "Something for later this week.",
+    "someday": "No rush. Someday.",
+    "inbox": "Capture it here, sort later."
+  };
+  return lines[name.toLowerCase()] || "Nothing here yet.";
+}
+
+function renderTaskCard(task) {
+  const card = el("div", {
+    class: "task" + (task.completed ? " done" : "") + (task.important ? " important" : ""),
+    draggable: "true",
+    dataset: { taskId: task.id },
+    tabindex: "0",
+    role: "button"
+  });
+
+  const check = el("button", {
+    class: "task-check",
+    "aria-label": task.completed ? "Mark incomplete" : "Mark complete",
+    onclick: e => { e.stopPropagation(); toggleTask(task); }
+  }, svg("check", 10, 10));
+
+  const subject = el("div", { class: "task-subject" }, task.subject || "Untitled");
+
+  const indicators = [];
+  if (task.description?.trim()) {
+    indicators.push(el("span", { title: "Has notes" }, svg("lines", 11, 11)));
+  }
+  if (/!\[[^\]]*\]\(assets\//.test(task.description || "")) {
+    indicators.push(el("span", { title: "Has image" }, svg("image", 11, 11)));
+  }
+  const indicatorRow = indicators.length ? el("div", { class: "task-indicator" }, ...indicators) : null;
+
+  const body = el("div", { class: "task-body" }, subject, indicatorRow);
+
+  const grip = el("div", { class: "task-grip", "aria-hidden": "true" }, svg("grip", 8, 16));
+
+  const star = el("button", {
+    class: "task-star" + (task.important ? " on" : ""),
+    "aria-label": task.important ? "Unmark important" : "Mark important",
+    title: task.important ? "Important" : "Mark important",
+    onclick: e => { e.stopPropagation(); toggleImportant(task); }
+  }, svg("star", 13, 13));
+
+  card.append(grip, check, body, star);
+
+  card.addEventListener("click", () => openTaskModal(task));
+  card.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTaskModal(task); }
+  });
+
+  card.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/x-task", task.id);
+    e.dataTransfer.effectAllowed = "move";
+    card.classList.add("dragging");
+    draggedTaskId = task.id;
+  });
+  card.addEventListener("dragend", () => {
+    card.classList.remove("dragging");
+    draggedTaskId = null;
+    clearDropMarkers();
+  });
+
+  if (searchQuery && matchesSearch(task, searchQuery)) {
+    card.classList.add("task-search-match");
+  }
+
+  return card;
+}
+
+function renderCompletedSection(cat, doneTasks) {
+  const section = el("section", { class: "completed-section" });
+  if (doneTasks.length === 0) return el("div");
+  const toggle = el("button", {
+    class: "completed-toggle",
+    "aria-expanded": "false",
+    onclick: () => {
+      section.classList.toggle("open");
+      toggle.setAttribute("aria-expanded", section.classList.contains("open"));
+    }
+  },
+    svg("chevron-right", 12, 12),
+    el("span", {}, `Completed · ${doneTasks.length}`)
+  );
+  const list = el("div", { class: "completed-list" });
+  for (const t of doneTasks) list.append(renderTaskCard(t));
+  section.append(toggle, list);
+  return section;
+}
+
+function renderAddColumn(folder) {
+  const col = el("button", {
+    class: "add-column",
+    "aria-label": "Add category",
+    title: "Add category",
+    onclick: () => addCategory(folder)
+  }, svg("plus", 20, 20));
+  return col;
+}
+
+function addCategory(folder) {
+  const name = prompt("Category name:");
+  if (!name) return;
+  folder.categories.push({ id: uuid(), name: name.trim().slice(0, 60) });
+  save();
+  renderBoard();
+}
+
+/* ---------- Category settings modal ---------- */
+const categoryModal = $("#category-modal");
+const categoryNameInput = $("#category-name-input");
+const categorySaveBtn = $("#category-save");
+const categoryDeleteBtn = $("#category-delete");
+const categoryModalSub = $("#category-modal-sub");
+let categoryModalCtx = null;
+
+function openCategoryModal(folder, cat) {
+  categoryModalCtx = { folder, cat };
+  categoryNameInput.value = cat.name;
+  const taskCount = state.tasks.filter(t => t.categoryId === cat.id).length;
+  categoryModalSub.textContent = taskCount
+    ? `${taskCount} task${taskCount === 1 ? "" : "s"} in this category.`
+    : "No tasks in this category.";
+  categoryDeleteBtn.disabled = folder.categories.length <= 1;
+  categoryDeleteBtn.title = folder.categories.length <= 1
+    ? "A folder needs at least one category" : "";
+  categoryModal.hidden = false;
+  setTimeout(() => { categoryNameInput.focus(); categoryNameInput.select(); }, 10);
+  focusTrap(categoryModal);
+}
+function closeCategoryModal() {
+  categoryModal.hidden = true;
+  categoryModalCtx = null;
+  releaseFocusTrap();
+}
+$$("[data-close='category']").forEach(e => e.addEventListener("click", closeCategoryModal));
+
+function saveCategoryFromModal() {
+  if (!categoryModalCtx) return;
+  const { cat } = categoryModalCtx;
+  const newName = categoryNameInput.value.trim().slice(0, 60);
+  if (newName && newName !== cat.name) {
+    cat.name = newName;
+    save();
+    renderBoard();
+  }
+  closeCategoryModal();
+}
+categorySaveBtn.addEventListener("click", saveCategoryFromModal);
+categoryNameInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); saveCategoryFromModal(); }
+});
+categoryDeleteBtn.addEventListener("click", async () => {
+  if (!categoryModalCtx) return;
+  const { folder, cat } = categoryModalCtx;
+  closeCategoryModal();
+  await deleteCategory(folder, cat);
+});
+
+async function deleteCategory(folder, cat) {
+  const taskCount = state.tasks.filter(t => t.categoryId === cat.id).length;
+  if (folder.categories.length === 1) {
+    toast("A folder needs at least one category.");
+    return;
+  }
+  const yes = await confirm({
+    title: `Delete "${cat.name}"?`,
+    text: taskCount
+      ? `This will delete ${taskCount} task${taskCount === 1 ? "" : "s"} in this category.`
+      : "The category has no tasks.",
+    okLabel: "Delete"
+  });
+  if (!yes) return;
+  folder.categories = folder.categories.filter(c => c.id !== cat.id);
+  state.tasks = state.tasks.filter(t => t.categoryId !== cat.id);
+  save();
+  renderBoard();
+}
+
+/* ---------- Task CRUD ---------- */
+function createTask({ categoryId, subject, description = "" }) {
+  const folder = currentFolder();
+  const task = {
+    id: uuid(),
+    folderId: folder.id,
+    categoryId,
+    subject: subject.trim().slice(0, 500),
+    description,
+    completed: false,
+    createdAt: new Date().toISOString(),
+    completedAt: null
+  };
+  const firstIdx = state.tasks.findIndex(t => t.categoryId === categoryId);
+  if (firstIdx === -1) state.tasks.push(task);
+  else state.tasks.splice(firstIdx, 0, task);
+  save();
+  renderBoard();
+  return task;
+}
+
+function toggleTask(task) {
+  task.completed = !task.completed;
+  task.completedAt = task.completed ? new Date().toISOString() : null;
+  save();
+  renderBoard();
+}
+
+function toggleImportant(task) {
+  task.important = !task.important;
+  save();
+  renderBoard();
+  if (openTaskId === task.id) updateModalStar(task);
+}
+
+function updateModalStar(task) {
+  const btn = $("#task-star-modal");
+  const on = !!task?.important;
+  btn.classList.toggle("on", on);
+  btn.setAttribute("aria-label", on ? "Unmark important" : "Mark important");
+  btn.title = on ? "Important" : "Mark important";
+}
+
+function deleteTask(task) {
+  state.tasks = state.tasks.filter(t => t.id !== task.id);
+  save();
+}
+
+function deleteTaskWithUndo(task) {
+  const snapshot = { ...task };
+  const idx = state.tasks.findIndex(t => t.id === task.id);
+  deleteTask(task);
+  renderBoard();
+  toast(`Deleted "${snapshot.subject || "task"}"`, {
+    actionLabel: "Undo",
+    onAction: () => {
+      state.tasks.splice(idx, 0, snapshot);
+      save();
+      renderBoard();
+    }
+  });
+}
+
+/* ---------- Drag-and-drop: tasks ---------- */
+let draggedTaskId = null;
+let draggedColumnId = null;
+
+function setupColumnDropZones(col, cat, taskList) {
+  // task drops (into this category, at the hovered slot)
+  const onTaskDrag = e => {
+    if (draggedTaskId == null && draggedColumnId == null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
+    if (draggedTaskId) {
+      col.classList.add("drop-target");
+      showTaskDropMarker(taskList, e.clientY);
+    } else if (draggedColumnId) {
+      col.classList.add("drop-target");
+    }
+  };
+  col.addEventListener("dragover", onTaskDrag);
+  col.addEventListener("dragleave", e => {
+    if (e.currentTarget === col && !col.contains(e.relatedTarget)) {
+      col.classList.remove("drop-target");
+      clearDropMarkers();
+    }
+  });
+  col.addEventListener("drop", e => {
+    e.preventDefault();
+    col.classList.remove("drop-target");
+    if (draggedTaskId) {
+      const targetIdx = computeInsertIndex(taskList, e.clientY);
+      moveTask(draggedTaskId, cat.id, targetIdx);
+    } else if (draggedColumnId) {
+      reorderCategory(draggedColumnId, cat.id);
+    }
+    clearDropMarkers();
+  });
+}
+
+function showTaskDropMarker(taskList, clientY) {
+  clearDropMarkers();
+  const cards = [...taskList.querySelectorAll(".task:not(.dragging)")];
+  const marker = el("div", { class: "drop-marker" });
+  let inserted = false;
+  for (const c of cards) {
+    const rect = c.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      taskList.insertBefore(marker, c);
+      inserted = true;
+      break;
+    }
+  }
+  if (!inserted) {
+    // append at end of open tasks (before empty state if any)
+    const empty = taskList.querySelector(".column-empty");
+    if (empty) taskList.insertBefore(marker, empty);
+    else taskList.append(marker);
+  }
+}
+
+function computeInsertIndex(taskList, clientY) {
+  const cards = [...taskList.querySelectorAll(".task:not(.dragging)")];
+  for (let i = 0; i < cards.length; i++) {
+    const rect = cards[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) return i;
+  }
+  return cards.length;
+}
+
+function clearDropMarkers() {
+  $$(".drop-marker").forEach(m => m.remove());
+  $$(".column.drop-target").forEach(c => c.classList.remove("drop-target"));
+}
+
+function moveTask(taskId, newCategoryId, visualIndex) {
+  const task = state.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  // Remove the task from the array
+  const idxInAll = state.tasks.indexOf(task);
+  state.tasks.splice(idxInAll, 1);
+  task.categoryId = newCategoryId;
+  // Compute the target position in the full tasks[] array.
+  // We want the task at visualIndex among OPEN tasks in the target category.
+  const targetOpen = state.tasks.filter(t => t.categoryId === newCategoryId && !t.completed);
+  const anchor = targetOpen[visualIndex];
+  if (!anchor) {
+    state.tasks.push(task);
+  } else {
+    const anchorIdx = state.tasks.indexOf(anchor);
+    state.tasks.splice(anchorIdx, 0, task);
+  }
+  save();
+  renderBoard();
+}
+
+/* ---------- Drag-and-drop: columns ---------- */
+function reorderCategory(sourceId, targetId) {
+  if (sourceId === targetId) return;
+  const folder = currentFolder();
+  const from = folder.categories.findIndex(c => c.id === sourceId);
+  const to = folder.categories.findIndex(c => c.id === targetId);
+  if (from < 0 || to < 0) return;
+  const [moved] = folder.categories.splice(from, 1);
+  folder.categories.splice(to, 0, moved);
+  save();
+  renderBoard();
+}
+
+/* ---------- Task modal ---------- */
+let openTaskId = null;
+const taskModal = $("#task-modal");
+const taskSubject = $("#task-subject");
+const taskDesc = $("#task-desc");
+const taskCategory = $("#task-category");
+const taskMeta = $("#task-meta");
+const taskDeleteBtn = $("#task-delete");
+
+const taskPreview = $("#task-preview");
+const mdToolbar = $("#md-toolbar");
+let taskMode = "write";
+
+function setTaskMode(mode) {
+  taskMode = mode;
+  $$(".md-tab").forEach(t => {
+    const on = t.dataset.mode === mode;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  mdToolbar.classList.toggle("in-preview", mode === "preview");
+  if (mode === "preview") {
+    taskDesc.hidden = true;
+    taskPreview.hidden = false;
+    renderTaskPreview();
+  } else {
+    taskPreview.hidden = true;
+    taskDesc.hidden = false;
+    setTimeout(() => taskDesc.focus(), 10);
+  }
+}
+
+async function renderTaskPreview() {
+  const src = taskDesc.value;
+  if (!src.trim()) {
+    taskPreview.innerHTML = "";
+    taskPreview.classList.add("is-empty");
+    return;
+  }
+  taskPreview.classList.remove("is-empty");
+  taskPreview.innerHTML = renderMarkdown(src);
+  await hydrateImages(taskPreview);
+}
+
+$$(".md-tab").forEach(t => t.addEventListener("click", () => setTaskMode(t.dataset.mode)));
+taskPreview.addEventListener("click", e => {
+  if (e.target.closest("a")) return;
+  setTaskMode("write");
+});
+
+function openTaskModal(task) {
+  openTaskId = task.id;
+  taskSubject.value = task.subject || "";
+  taskDesc.value = task.description || "";
+  populateCategorySelect(taskCategory, task.categoryId);
+  updateTaskMeta(task);
+  updateModalStar(task);
+  taskModal.hidden = false;
+  const hasContent = !!(task.description || "").trim();
+  setTaskMode(hasContent ? "preview" : "write");
+  autoResizeSubject();
+  focusTrap(taskModal);
+}
+
+$("#task-star-modal").addEventListener("click", () => {
+  const t = state.tasks.find(x => x.id === openTaskId);
+  if (!t) return;
+  toggleImportant(t);
+});
+
+function closeTaskModal() {
+  openTaskId = null;
+  taskModal.hidden = true;
+  releaseFocusTrap();
+  renderBoard();
+}
+
+function updateTaskMeta(task) {
+  const parts = [];
+  parts.push(`Created ${fmtDate(task.createdAt)}`);
+  if (task.completedAt) parts.push(`Completed ${fmtDate(task.completedAt)}`);
+  taskMeta.innerHTML = parts.map((p, i) =>
+    i === 0 ? `<span>${escapeHtml(p)}</span>` : ` · <span>${escapeHtml(p)}</span>`
+  ).join("");
+}
+
+function populateCategorySelect(sel, currentId) {
+  const folder = currentFolder();
+  sel.innerHTML = "";
+  for (const c of folder.categories) {
+    sel.append(el("option", { value: c.id, selected: c.id === currentId ? true : null }, c.name));
+  }
+}
+
+const saveTaskEdits = debounce(() => {
+  if (!openTaskId) return;
+  const t = state.tasks.find(x => x.id === openTaskId);
+  if (!t) return;
+  t.subject = taskSubject.value.replace(/[\r\n]+/g, " ").trim().slice(0, 500);
+  t.description = taskDesc.value;
+  t.categoryId = taskCategory.value;
+  save();
+  // Board is hidden behind the modal — re-render happens on close, not per keystroke.
+}, 250);
+
+function autoResizeSubject() {
+  taskSubject.style.height = "auto";
+  taskSubject.style.height = taskSubject.scrollHeight + "px";
+}
+taskSubject.addEventListener("input", saveTaskEdits);
+taskSubject.addEventListener("input", autoResizeSubject);
+taskSubject.addEventListener("keydown", e => {
+  if (e.key === "Enter") e.preventDefault();
+});
+taskDesc.addEventListener("input", saveTaskEdits);
+taskCategory.addEventListener("change", saveTaskEdits);
+taskDeleteBtn.addEventListener("click", async () => {
+  const t = state.tasks.find(x => x.id === openTaskId);
+  if (!t) return;
+  const yes = await confirm({
+    title: "Delete this task?",
+    text: `"${t.subject || "Untitled"}" will be removed. You can undo from the toast.`,
+    okLabel: "Delete"
+  });
+  if (!yes) return;
+  const toDelete = t;
+  closeTaskModal();
+  deleteTaskWithUndo(toDelete);
+});
+
+$$("[data-close='task']").forEach(e => e.addEventListener("click", closeTaskModal));
+
+/* Markdown toolbar */
+function wrapSelection(textarea, before, after = before) {
+  const { selectionStart: s, selectionEnd: e, value } = textarea;
+  const sel = value.slice(s, e);
+  const newVal = value.slice(0, s) + before + sel + after + value.slice(e);
+  textarea.value = newVal;
+  textarea.selectionStart = s + before.length;
+  textarea.selectionEnd = e + before.length;
+  textarea.focus();
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function prefixLines(textarea, prefixFn) {
+  const { selectionStart: s, selectionEnd: e, value } = textarea;
+  const before = value.slice(0, s);
+  const sel = value.slice(s, e);
+  const after = value.slice(e);
+  const startLine = before.lastIndexOf("\n") + 1;
+  const endLine = after.indexOf("\n");
+  const fullSelStart = startLine;
+  const fullSelEnd = e + (endLine === -1 ? after.length : endLine);
+  const block = value.slice(fullSelStart, fullSelEnd);
+  const lines = block.split("\n");
+  const transformed = lines.map((l, i) => prefixFn(l, i)).join("\n");
+  textarea.value = value.slice(0, fullSelStart) + transformed + value.slice(fullSelEnd);
+  textarea.selectionStart = fullSelStart;
+  textarea.selectionEnd = fullSelStart + transformed.length;
+  textarea.focus();
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+$$(".md-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const kind = btn.dataset.md;
+    if (kind === "bold") wrapSelection(taskDesc, "**");
+    else if (kind === "italic") wrapSelection(taskDesc, "*");
+    else if (kind === "ul") prefixLines(taskDesc, l => l.trim() ? "- " + l.replace(/^[-*]\s*/, "") : l);
+    else if (kind === "ol") prefixLines(taskDesc, (l, i) => l.trim() ? `${i + 1}. ` + l.replace(/^\d+\.\s*/, "") : l);
+    else if (kind === "image") await pickAndInsertImage();
+  });
+});
+taskDesc.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); wrapSelection(taskDesc, "**"); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") { e.preventDefault(); wrapSelection(taskDesc, "*"); }
+});
+
+async function pickAndInsertImage() {
+  try {
+    const [fh] = await window.showOpenFilePicker({
+      types: [{ description: "Images", accept: { "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"] } }],
+      excludeAcceptAllOption: true,
+      multiple: false
+    });
+    const f = await fh.getFile();
+    const ext = f.name.split(".").pop().toLowerCase() || "png";
+    const path = await writeImage(f, ext);
+    insertAtCursor(taskDesc, `\n![${f.name.replace(/\.[^.]+$/, "")}](${path})\n`);
+  } catch (e) {
+    if (e.name !== "AbortError") toast("Couldn't add image: " + e.message);
+  }
+}
+function insertAtCursor(ta, text) {
+  const { selectionStart, selectionEnd, value } = ta;
+  ta.value = value.slice(0, selectionStart) + text + value.slice(selectionEnd);
+  const pos = selectionStart + text.length;
+  ta.selectionStart = ta.selectionEnd = pos;
+  ta.focus();
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+// Paste image handler
+taskDesc.addEventListener("paste", async e => {
+  const items = [...(e.clipboardData?.items || [])];
+  const imgItem = items.find(it => it.type?.startsWith("image/"));
+  if (!imgItem) return;
+  e.preventDefault();
+  const blob = imgItem.getAsFile();
+  const ext = (blob.type.split("/")[1] || "png").split(";")[0];
+  try {
+    const path = await writeImage(blob, ext);
+    insertAtCursor(taskDesc, `\n![pasted image](${path})\n`);
+    toast("Image saved to assets/");
+  } catch (err) {
+    toast("Couldn't save image: " + err.message);
+  }
+});
+
+/* ---------- Quick-add modal ---------- */
+const quickModal = $("#quick-modal");
+const quickSubject = $("#quick-subject");
+const quickDesc = $("#quick-desc");
+const quickDescArea = $("#quick-desc-area");
+const quickDescToggle = $("#quick-desc-toggle");
+const quickCategory = $("#quick-category");
+let quickLastCategoryId = null;
+
+function openQuickAdd() {
+  quickSubject.value = "";
+  quickDesc.value = "";
+  quickDescArea.hidden = true;
+  quickDescToggle.textContent = "+ description";
+  populateCategorySelect(quickCategory, quickLastCategoryId || currentFolder().categories[0]?.id);
+  quickModal.hidden = false;
+  setTimeout(() => quickSubject.focus(), 10);
+  focusTrap(quickModal);
+}
+function closeQuickAdd() { quickModal.hidden = true; releaseFocusTrap(); }
+function submitQuickAdd() {
+  const subject = quickSubject.value.trim();
+  if (!subject) return;
+  const catId = quickCategory.value;
+  quickLastCategoryId = catId;
+  createTask({ categoryId: catId, subject, description: quickDesc.value });
+  closeQuickAdd();
+}
+quickSubject.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitQuickAdd(); }
+});
+quickDesc.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submitQuickAdd(); }
+});
+quickDescToggle.addEventListener("click", () => {
+  const hidden = quickDescArea.hidden;
+  quickDescArea.hidden = !hidden;
+  quickDescToggle.textContent = hidden ? "– description" : "+ description";
+  if (hidden) setTimeout(() => quickDesc.focus(), 10);
+});
+$$("[data-close='quick']").forEach(e => e.addEventListener("click", closeQuickAdd));
+
+/* ---------- Folders modal ---------- */
+const foldersModal = $("#folders-modal");
+function openFoldersModal() {
+  renderFoldersList();
+  foldersModal.hidden = false;
+  focusTrap(foldersModal);
+}
+function closeFoldersModal() { foldersModal.hidden = true; releaseFocusTrap(); }
+$$("[data-close='folders']").forEach(e => e.addEventListener("click", closeFoldersModal));
+
+function renderFoldersList() {
+  const list = $("#folders-list");
+  list.innerHTML = "";
+  for (const f of state.folders) {
+    const name = el("div", {
+      class: "folder-row-name",
+      contenteditable: "true",
+      spellcheck: "false",
+      onkeydown: e => {
+        if (e.key === "Enter") { e.preventDefault(); name.blur(); }
+        if (e.key === "Escape") { name.textContent = f.name; name.blur(); }
+      },
+      onblur: () => {
+        const v = name.textContent.trim().slice(0, 60);
+        if (v && v !== f.name) { f.name = v; save(); updateFolderLabel(); }
+        else name.textContent = f.name;
+      }
+    }, f.name);
+    const taskCount = state.tasks.filter(t => t.folderId === f.id).length;
+    const row = el("div", { class: "folder-row" },
+      svg("folder", 14, 14),
+      name,
+      el("span", { class: "folder-row-meta" }, `${taskCount} task${taskCount === 1 ? "" : "s"}`),
+      el("button", {
+        class: "iconbtn", "aria-label": "Delete folder", title: "Delete folder",
+        onclick: async () => {
+          if (state.folders.length === 1) {
+            toast("At least one folder must exist.");
+            return;
+          }
+          const yes = await confirm({
+            title: `Delete "${f.name}"?`,
+            text: taskCount
+              ? `This will delete the folder and its ${taskCount} task${taskCount === 1 ? "" : "s"}. This can't be undone.`
+              : "This folder has no tasks.",
+            okLabel: "Delete"
+          });
+          if (!yes) return;
+          state.folders = state.folders.filter(x => x.id !== f.id);
+          state.tasks = state.tasks.filter(t => t.folderId !== f.id);
+          if (state.activeFolderId === f.id) state.activeFolderId = state.folders[0].id;
+          save();
+          renderFoldersList();
+          updateFolderLabel();
+          renderBoard();
+        }
+      }, svg("trash", 14, 14))
+    );
+    list.append(row);
+  }
+}
+$("#folder-create").addEventListener("click", () => {
+  const input = $("#folder-new-name");
+  const name = input.value.trim();
+  if (!name) return;
+  const folder = {
+    id: uuid(),
+    name: name.slice(0, 60),
+    categories: [
+      { id: uuid(), name: "Today" },
+      { id: uuid(), name: "This week" },
+      { id: uuid(), name: "Someday" }
+    ]
+  };
+  state.folders.push(folder);
+  save();
+  input.value = "";
+  renderFoldersList();
+  updateFolderLabel();
+});
+$("#folder-new-name").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("#folder-create").click();
+});
+
+/* ---------- Clear completed > 90 days ---------- */
+async function clearCompletedPrompt() {
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const victims = state.tasks.filter(t => t.completed && t.completedAt && new Date(t.completedAt).getTime() < cutoff);
+  if (victims.length === 0) {
+    toast("Nothing to clear — no completed tasks older than 90 days.");
+    return;
+  }
+  const yes = await confirm({
+    title: `Delete ${victims.length} old completed task${victims.length === 1 ? "" : "s"}?`,
+    text: "These are completed tasks older than 90 days. They'll be permanently removed. The JSON file stays, as do any images still referenced by other tasks.",
+    okLabel: "Delete"
+  });
+  if (!yes) return;
+  state.tasks = state.tasks.filter(t => !victims.includes(t));
+  save();
+  renderBoard();
+  toast(`Cleared ${victims.length} task${victims.length === 1 ? "" : "s"}.`);
+}
+
+/* ---------- Search ---------- */
+const searchBar = $("#search-bar");
+const searchInput = $("#search-input");
+const searchCount = $("#search-count");
+function openSearch() {
+  searchBar.hidden = false;
+  setTimeout(() => searchInput.focus(), 10);
+}
+function closeSearch() {
+  searchBar.hidden = true;
+  searchInput.value = "";
+  searchQuery = "";
+  searchCount.textContent = "";
+  renderBoard();
+}
+searchInput.addEventListener("input", () => {
+  searchQuery = searchInput.value.trim().toLowerCase();
+  const count = searchQuery
+    ? state.tasks.filter(t => matchesSearch(t, searchQuery)).length
+    : 0;
+  searchCount.textContent = searchQuery ? `${count} match${count === 1 ? "" : "es"}` : "";
+  renderBoard();
+});
+$("#search-close").addEventListener("click", closeSearch);
+$("#btn-search").addEventListener("click", () => searchBar.hidden ? openSearch() : closeSearch());
+
+function matchesSearch(t, q) {
+  if (!q) return false;
+  if (t.folderId !== state.activeFolderId) return false;
+  const hay = (t.subject + " " + (t.description || "")).toLowerCase();
+  return hay.includes(q);
+}
+
+/* ---------- Keyboard shortcuts ---------- */
+document.addEventListener("keydown", e => {
+  // "n" — quick add (when not typing in a field)
+  if ((e.key === "n" || e.key === "N") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (!state) return;
+    const tag = e.target.tagName;
+    const editing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable;
+    if (editing) return;
+    e.preventDefault();
+    openQuickAdd();
+    return;
+  }
+  // Ctrl/Cmd+F — search
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+    if (!state) return;
+    e.preventDefault();
+    openSearch();
+    return;
+  }
+  if (e.key === "Escape") {
+    if (!categoryModal.hidden) closeCategoryModal();
+    else if (!quickModal.hidden) closeQuickAdd();
+    else if (!taskModal.hidden) closeTaskModal();
+    else if (!foldersModal.hidden) closeFoldersModal();
+    else if (!searchBar.hidden) closeSearch();
+  }
+});
+
+/* ---------- Focus trap (simple) ---------- */
+let trapHandler = null;
+function focusTrap(modal) {
+  releaseFocusTrap();
+  trapHandler = e => {
+    if (e.key !== "Tab") return;
+    const nodes = $$("input,textarea,button,select,[tabindex]:not([tabindex='-1'])", modal)
+      .filter(n => !n.disabled && n.offsetParent !== null);
+    if (nodes.length === 0) return;
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  modal.addEventListener("keydown", trapHandler);
+}
+function releaseFocusTrap() {
+  if (trapHandler) document.removeEventListener("keydown", trapHandler);
+  trapHandler = null;
+}
+
+/* ---------- Hydrate markdown images after board renders ---------- */
+const renderBoardOrig = renderBoard;
+renderBoard = function() {
+  renderBoardOrig();
+  updateFolderLabel();
+};
+
+/* ---------- Top bar buttons ---------- */
+$("#btn-new-task").addEventListener("click", openQuickAdd);
+
+/* ---------- Bootstrap ---------- */
+const welcome = $("#welcome");
+const appRoot = $("#app");
+const welcomeError = $("#welcome-error");
+
+async function pickDirectory() {
+  try {
+    const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+    if (!(await ensurePermission(handle))) {
+      welcomeError.hidden = false;
+      welcomeError.textContent = "Permission denied. You need to grant read/write access.";
+      return;
+    }
+    dirHandle = handle;
+    await idbSet("dirHandle", handle);
+    await startApp();
+  } catch (e) {
+    if (e.name === "AbortError") return;
+    welcomeError.hidden = false;
+    welcomeError.textContent = e.message || String(e);
+  }
+}
+
+async function startApp() {
+  try {
+    state = await loadJson();
+    fileName.textContent = (dirHandle.name || "folder") + "/todos.json";
+    welcome.hidden = true;
+    appRoot.hidden = false;
+    renderBoard();
+    updateFolderLabel();
+    setFileStatus("saved");
+    startExternalWatcher();
+  } catch (e) {
+    welcomeError.hidden = false;
+    welcomeError.textContent = e.message;
+    welcome.hidden = false;
+    appRoot.hidden = true;
+  }
+}
+
+let externalWatcherTimer = null;
+function startExternalWatcher() {
+  clearInterval(externalWatcherTimer);
+  externalWatcherTimer = setInterval(async () => {
+    if (!dirHandle || document.hidden) return;
+    try {
+      const fh = await dirHandle.getFileHandle("todos.json");
+      const f = await fh.getFile();
+      if (lastExternalMtime && f.lastModified > lastExternalMtime + 1000) {
+        // check content actually differs from what we wrote
+        const txt = await f.text();
+        if (txt.trim() !== lastWrittenSnapshot.trim()) {
+          showExternalConflict();
+        }
+      }
+    } catch (e) {
+      // ignore transient errors
+    }
+  }, 5000);
+}
+
+async function tryAutoOpen() {
+  const btn = $("#btn-pick-folder");
+  btn.onclick = pickDirectory; // default: first-time users
+
+  if (!("showDirectoryPicker" in window)) {
+    welcome.hidden = false;
+    $("#welcome-unsupported").hidden = false;
+    btn.disabled = true;
+    return;
+  }
+  let saved = null;
+  try { saved = await idbGet("dirHandle"); } catch {}
+  if (!saved) {
+    welcome.hidden = false;
+    return;
+  }
+  // queryPermission is safe without a user gesture; requestPermission is not.
+  let status = "prompt";
+  try { status = await saved.queryPermission({ mode: "readwrite" }); } catch {}
+  if (status === "granted") {
+    dirHandle = saved;
+    await startApp();
+    return;
+  }
+  // Need a click to call requestPermission — show a one-tap reopen button.
+  welcome.hidden = false;
+  btn.textContent = `Reopen "${saved.name}"`;
+  btn.onclick = async () => {
+    try {
+      const result = await saved.requestPermission({ mode: "readwrite" });
+      if (result === "granted") {
+        dirHandle = saved;
+        await startApp();
+      } else {
+        welcomeError.hidden = false;
+        welcomeError.textContent = "Permission denied. Click again, or pick a different folder.";
+        btn.textContent = "Pick a different folder";
+        btn.onclick = pickDirectory;
+      }
+    } catch (e) {
+      welcomeError.hidden = false;
+      welcomeError.textContent = e.message || String(e);
+    }
+  };
+  // Also add a secondary "pick different folder" affordance
+  if (!$("#btn-pick-other")) {
+    const alt = el("button", {
+      id: "btn-pick-other",
+      class: "btn btn-ghost",
+      style: "margin-left: 10px",
+      onclick: pickDirectory
+    }, "Pick a different folder");
+    btn.after(alt);
+  }
+}
+
+// handler assigned via .onclick in tryAutoOpen() — avoids stacking with a reopen handler
+
+/* ---------- Flush writes on unload ---------- */
+window.addEventListener("beforeunload", () => {
+  if (dirty) writeJson.flush();
+});
+
+/* ---------- SVG icons ---------- */
+function svg(name, w = 16, h = 16) {
+  const ns = "http://www.w3.org/2000/svg";
+  const s = document.createElementNS(ns, "svg");
+  s.setAttribute("width", w); s.setAttribute("height", h);
+  s.setAttribute("viewBox", "0 0 24 24");
+  s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
+  s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
+  const paths = {
+    check: `<polyline points="20 6 9 17 4 12" stroke-width="2.5"/>`,
+    x: `<path d="M18 6 6 18M6 6l12 12"/>`,
+    plus: `<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`,
+    trash: `<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>`,
+    "chevron-right": `<polyline points="9 6 15 12 9 18"/>`,
+    grip: `<circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>`,
+    folder: `<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`,
+    gear: `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
+    lines: `<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="17" x2="18" y2="17"/>`,
+    image: `<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5-5-6 6-3-3-4 4"/>`,
+    star: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`
+  };
+  s.innerHTML = paths[name] || "";
+  return s;
+}
+
+/* ---------- Kick off ---------- */
+tryAutoOpen();
+
+})();
+</script>
+</body>
+</html>
