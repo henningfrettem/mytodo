@@ -385,7 +385,7 @@
   .board {
     display: flex;
     gap: 14px;
-    padding: 22px 24px 28px;
+    padding: 22px 24px 44px;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-padding: 24px;
@@ -710,25 +710,39 @@
   .completed-section.open .completed-list { display: flex; }
 
   /* ---------- Add-column tile ---------- */
-  .add-column {
-    flex: 0 0 64px;
-    align-self: stretch;
-    border: 1.5px dashed var(--rule);
-    border-radius: var(--radius-lg);
-    display: grid;
-    place-items: center;
+  .shortcut-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 4;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 3px 15px;
+    padding: 7px 24px;
+    font-size: 11px;
     color: var(--mute);
-    transition: all .15s var(--r);
-    cursor: pointer;
-    min-height: 180px;
+    background: rgba(243, 237, 224, .75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--rule-soft);
   }
-  .add-column:hover {
-    border-color: var(--accent-soft);
-    color: var(--accent);
-    flex-basis: 120px;
-    background: var(--accent-ghost);
+  .shortcut-bar span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
   }
-  .add-column svg { width: 20px; height: 20px; }
+  .shortcut-bar kbd {
+    font-size: 10px;
+    padding: 1px 4px;
+    line-height: 1.5;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--mute);
+  }
+  .shortcut-sep { color: var(--rule); }
 
   /* ---------- Modals ---------- */
   .modal {
@@ -1172,6 +1186,9 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
+      <button id="btn-add-category" class="iconbtn" aria-label="Add category" title="Add category">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
     </div>
     <div class="topbar-center">
       <button id="btn-new-task" class="btn btn-primary">
@@ -1204,6 +1221,22 @@
   </div>
 
   <main id="board" class="board"></main>
+
+  <footer class="shortcut-bar" aria-label="Keyboard shortcuts">
+    <span><kbd>N</kbd> new task</span>
+    <span class="shortcut-sep">|</span>
+    <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> within column</span>
+    <span><kbd>&#8592;</kbd><kbd>&#8594;</kbd> between columns</span>
+    <span><kbd>Ctrl</kbd> + arrows move card</span>
+    <span class="shortcut-sep">|</span>
+    <span><kbd>Enter</kbd> open</span>
+    <span><kbd>Space</kbd> mark done</span>
+    <span><kbd>Esc</kbd> close &amp; save</span>
+    <span class="shortcut-sep">|</span>
+    <span><kbd>Ctrl</kbd><kbd>F</kbd> search</span>
+    <span><kbd>Ctrl</kbd><kbd>B</kbd>/<kbd>I</kbd> bold, italic</span>
+    <span><kbd>Space</kbd> in preview edits notes</span>
+  </footer>
 </div>
 
 <!-- Task detail modal -->
@@ -1751,7 +1784,6 @@ function renderBoard() {
   for (const cat of folder.categories) {
     boardEl.append(renderColumn(folder, cat));
   }
-  boardEl.append(renderAddColumn(folder));
   restoreBoardFocus();
 }
 
@@ -1956,16 +1988,6 @@ function renderCompletedSection(cat, doneTasks) {
   for (const t of doneTasks) list.append(renderTaskCard(t));
   section.append(toggle, list);
   return section;
-}
-
-function renderAddColumn(folder) {
-  const col = el("button", {
-    class: "add-column",
-    "aria-label": "Add category",
-    title: "Add category",
-    onclick: () => addCategory(folder)
-  }, svg("plus", 20, 20));
-  return col;
 }
 
 function addCategory(folder) {
@@ -2779,6 +2801,7 @@ renderBoard = function() {
 
 /* ---------- Top bar buttons ---------- */
 $("#btn-new-task").addEventListener("click", openQuickAdd);
+$("#btn-add-category").addEventListener("click", () => addCategory(currentFolder()));
 
 /* ---------- Bootstrap ---------- */
 const welcome = $("#welcome");
