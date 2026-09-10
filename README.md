@@ -1,27 +1,39 @@
 # Todo
 
-A single-file todo board that runs straight from your filesystem. No server, no
-build step, no account, no network calls. You point it at a folder and it keeps
-a `todos.json` file there, alongside any images you paste.
-
-The whole app is one `index.html` — HTML, CSS and JavaScript inlined. Move the
-file wherever you like and open it.
+A single-file todo board backed by Supabase. Still one `index.html` you open
+straight off disk — no server, no build step, no npm — but the data now lives in
+Postgres rather than a file next to it.
 
 ## Running it
 
-Open `index.html` in **Microsoft Edge** or **Google Chrome** on desktop, then
-click **Choose a folder**. The app creates `todos.json` in that folder on first
-use, and an `assets/` subfolder the first time you add an image.
+Double-click `index.html`. Chrome, Edge, Firefox and Safari all work; the File
+System Access API is no longer involved, so the old browser restriction is gone.
 
-Firefox and Safari won't work — the app uses the
-[File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)
-to read and write real files on disk, and neither has shipped it. The app
-detects this and says so rather than failing silently.
+On first launch you're asked for your Supabase **project URL** and **publishable
+key**, then your email and password. Both project values are kept in
+`localStorage`, so you're asked once per browser. Neither is a secret — the
+publishable key is public by design and row-level security is what actually
+protects the data — but they aren't in the repo either, so a clone starts blank.
 
-The folder handle is remembered in IndexedDB, so on later visits you get a
-one-click **Reopen** button instead of having to re-pick the folder. Browsers
-require a user gesture before re-granting write permission, which is why it's a
-button and not automatic.
+**The app needs an internet connection.** There is no offline mode: without a
+route to Supabase it cannot load your board.
+
+## Setting up a fresh project
+
+1. Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL Editor.
+   It creates a `todo` schema, three tables, row-level security, and a private
+   `todo-images` bucket. It is safe to re-run.
+2. Add `todo` under **Settings → API → Exposed schemas**. PostgREST only serves
+   schemas listed there, and without it every request comes back `404`.
+3. Create your user under **Authentication → Users**, and turn **off**
+   *Allow new users to sign up*.
+
+Everything lives in a dedicated `todo` schema so one Supabase instance can host
+several small projects side by side. Storage buckets are global to the instance,
+hence the `todo-` prefix on the bucket and on its policies.
+
+`migrate.html` is the one-shot importer that moved the original `todos.json`
+into Supabase. It is kept for reference and is not needed again.
 
 ## Layout
 
@@ -30,7 +42,7 @@ in the top left, and add a column with the **+** beside it. Within a folder,
 **categories** are the columns, and tasks live inside them. Completed tasks
 collapse into a section at the bottom of their column.
 
-A bar along the bottom of the screen lists every keyboard shortcut.
+A bar along the bottom lists every keyboard shortcut.
 
 ## What it does
 
@@ -69,10 +81,11 @@ placement, but they can still be moved between columns.
 
 **Images**
 
-Paste an image straight into a description, or use the toolbar button. The file
-is written into `assets/` next to `todos.json` and referenced from the markdown
-as `![alt](assets/<uuid>.png)`. Because the images are real files in the folder,
-moving or copying the folder takes them along.
+Paste an image into a description, or use the toolbar button. It uploads to the
+private `todo-images` bucket under your user id, and the markdown records it as
+`![alt](sb:<uuid>.png)`. Display goes through a one-hour signed URL cached in
+memory, so opening the same card repeatedly costs one round trip rather than one
+per view.
 
 **Search**
 
@@ -103,64 +116,68 @@ On a Mac use `⌘` — every shortcut accepts either modifier. Note that macOS
 intercepts `Ctrl`+arrows for Mission Control, so use `⌘`+arrows to move cards
 there. The on-screen legend always says `Ctrl`.
 
-## Saving
+## How saving works
 
-Writes are debounced ~300 ms and the full JSON object is rewritten each time.
-The dot in the top right shows the current state — saving, saved, or an error.
+This is the part that keeps the app instant despite a database behind it.
 
-The app also polls `todos.json` every 5 seconds while the tab is visible. If the
-file changed underneath it — edited by hand, or synced in from another machine —
-it stops and offers a reload rather than overwriting your changes. It's a guard,
-not a merge: reloading discards whatever is unsaved in that tab.
+Every edit changes an in-memory object and re-renders synchronously — the same
+code path as when a local file backed it, measured at well under a millisecond.
+Nothing on the render path ever awaits the network.
+
+Writes happen on a timer. Roughly 800ms after you stop making changes, the app
+diffs a snapshot of the whole state against what it last successfully wrote, and
+sends only the rows that actually differ. Ids are generated by the client, so
+each is a plain upsert. Deletes go before inserts so foreign keys stay satisfied.
+
+Diffing a snapshot rather than tracking dirty rows at each call site also makes
+failure boring: if a write fails the snapshot isn't advanced, the dot turns red,
+and the next flush retries the same rows. Nothing is lost and nothing has to be
+replayed in order.
+
+Hiding the tab flushes immediately. Closing it with an unsaved change still
+inside the debounce window prompts before leaving.
+
+The dot in the top right shows the state — saving, saved, or error.
 
 ## Your data
 
-`todos.json` and `assets/` are **not** committed to this repo. This repo is
-public and those files are your actual notes.
+Everything lives in your Supabase project, under your user id, behind row-level
+security. Every policy keys off `auth.uid()`, which is `NULL` for an
+unauthenticated caller and therefore matches no row and permits no insert. That
+is why the publishable key being public is not a problem.
 
-That also means the repo holds the app but not your todos, so cloning it
-elsewhere gives you an empty board. To move your data, copy the folder itself —
-or keep the folder inside OneDrive or Dropbox and let those sync it.
+Nothing in this repo contains your data or your credentials.
 
-There is no backup beyond the folder. If you lose it, the todos are gone.
+The original `todos.json` and `assets/` are gitignored and no longer read by the
+app. Keeping them as a cold backup costs nothing.
 
-## Data format
+## Data model
 
-```json
-{
-  "version": 2,
-  "folders": [
-    {
-      "id": "uuid",
-      "name": "Personal",
-      "categories": [{ "id": "uuid", "name": "Today" }]
-    }
-  ],
-  "tasks": [
-    {
-      "id": "uuid",
-      "folderId": "uuid",
-      "categoryId": "uuid",
-      "subject": "string",
-      "description": "markdown string",
-      "completed": false,
-      "important": false,
-      "dueDate": "YYYY-MM-DD or null",
-      "createdAt": "ISO 8601",
-      "completedAt": null
-    }
-  ],
-  "activeFolderId": "uuid"
-}
+Three tables in the `todo` schema. Columns are snake_case in Postgres and
+camelCase in the app; the mapping happens in one place on load and one on save.
+
+```
+folders     id, user_id, name, position, updated_at
+categories  id, user_id, folder_id, name, position, updated_at
+tasks       id, user_id, folder_id, category_id, subject, description,
+            completed, important, due_date, position,
+            created_at, completed_at, updated_at
 ```
 
-Plain JSON, readable and editable by hand if you ever need to. Task order within
-a category is the array order, except that tasks due within three days are
-pinned above the rest at render time.
+`position` is the manual order within a parent, renumbered from zero on every
+write. Due-date pinning is applied at render time and never stored, so clearing
+a date restores the manual order exactly.
 
-`dueDate` is a plain date with no time or zone, so "due today" means today
-wherever you happen to be. Tasks written before the field existed simply omit
-it and read as undated — no migration needed.
+`due_date` is a plain date with no time or zone, so "due today" means today
+wherever you are.
 
-`TODO_APP_SPEC.md` holds the original build spec. It's kept for reference and
-has drifted from the implementation in places — the code is the source of truth.
+## A note on the bundled library
+
+`index.html` contains supabase-js v2.116.0 inlined verbatim as a UMD bundle,
+which accounts for most of its size. It's inlined rather than imported because an
+ES module import is CORS-checked and would be refused on `file://`, and a CDN
+fetch would make startup depend on a third party. To upgrade, replace that one
+`<script>` block with a newer UMD build.
+
+`TODO_APP_SPEC.md` holds the original build spec, from when this was a local-file
+app. It's kept for history and no longer describes the implementation.
