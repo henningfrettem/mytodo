@@ -10,10 +10,20 @@ Double-click `index.html`. Chrome, Edge, Firefox and Safari all work; the File
 System Access API is no longer involved, so the old browser restriction is gone.
 
 On first launch you're asked for your Supabase **project URL** and **publishable
-key**, then your email and password. Both project values are kept in
-`localStorage`, so you're asked once per browser. Neither is a secret — the
-publishable key is public by design and row-level security is what actually
-protects the data — but they aren't in the repo either, so a clone starts blank.
+key**, then your email and password. Those project values are then kept in
+`localStorage`, and supabase-js keeps the session, so normally nothing is asked
+again.
+
+To avoid the setup screen entirely — including on a fresh browser profile — copy
+`config.local.example.js` to **`config.local.js`** and fill it in. That file is
+gitignored and takes precedence over anything typed on screen. It's a `.js` file
+rather than `.env` or `.json` because a page opened from `file://` cannot fetch a
+sibling file; a script that assigns a global is the only form that loads.
+
+Adding `email` to it prefills the field. Adding `password` as well signs you in
+automatically — at the cost of a plaintext password sitting on your disk. It
+never reaches the repo, but weigh that before filling it in. Signing out
+deliberately overrides auto sign-in for that one page load.
 
 **The app needs an internet connection.** There is no offline mode: without a
 route to Supabase it cannot load your board.

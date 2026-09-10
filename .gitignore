@@ -14,3 +14,6 @@ Thumbs.db
 .vscode/
 .idea/
 supabase-check.html
+
+# Local Supabase connection details (see config.local.example.js)
+config.local.js

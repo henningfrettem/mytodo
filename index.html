@@ -1438,6 +1438,9 @@
 
 <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
 
+<!-- Optional, gitignored. See config.local.example.js. Absent is fine. -->
+<script src="config.local.js" onerror="void 0"></script>
+
 <!-- supabase-js v2.116.0, UMD build, vendored verbatim.
      Inlined rather than imported: an ES module import is CORS-checked and
      would be refused on file://, and a CDN fetch would make startup depend
@@ -1518,7 +1521,18 @@ const fmtDate = iso => {
 // refused by the CORS check that applies to module scripts on file://.
 const CFG_KEY = "todo.supabase.config";
 
+// config.local.js wins over anything typed into the setup screen, so a filled-in
+// file survives cleared browser storage and moves with the folder.
+function fileConfig() {
+  const c = window.TODO_CONFIG;
+  if (!c || !c.url || !c.key) return null;
+  if (!/^https:\/\/[^\s]+$/.test(c.url) || /YOUR-PROJECT/i.test(c.url)) return null;
+  return c;
+}
+
 function loadConfig() {
+  const f = fileConfig();
+  if (f) return { url: f.url, key: f.key, schema: f.schema || "todo" };
   try { return JSON.parse(localStorage.getItem(CFG_KEY) || "null"); } catch { return null; }
 }
 function saveConfig(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
@@ -3107,6 +3121,10 @@ $("#setup-form").addEventListener("submit", e => {
 
 $("#btn-reconfigure").addEventListener("click", () => {
   clearConfig();
+  if (fileConfig()) {
+    welcomeFail("config.local.js is setting the project. Edit or delete that file to change it.");
+    return;
+  }
   welcomeError.hidden = true;
   showWelcome("setup");
   setTimeout(() => $("#setup-url").focus(), 10);
@@ -3136,6 +3154,7 @@ $("#login-form").addEventListener("submit", async e => {
 $("#btn-signout").addEventListener("click", async () => {
   if (dirty) { try { await flushNow(); } catch {} }
   try { await sb.auth.signOut(); } catch {}
+  sessionStorage.setItem("todo.noAutoLogin", "1");
   location.reload();
 });
 
@@ -3168,12 +3187,42 @@ async function boot() {
   const cfg = loadConfig();
   if (!cfg) { showWelcome("setup"); setTimeout(() => $("#setup-url").focus(), 10); return; }
   sb = makeClient(cfg);
+
+  // Normal path: supabase-js persisted the session, so nothing is asked at all.
   let session = null;
   try { session = (await sb.auth.getSession()).data.session; } catch {}
-  if (session && session.user) {
-    await startApp(session.user);
-  } else {
+  if (session && session.user) return startApp(session.user);
+
+  const f = fileConfig();
+
+  // Signing out has to win over stored credentials, or it would just log
+  // straight back in. Cleared after one page load.
+  const suppressed = sessionStorage.getItem("todo.noAutoLogin");
+  sessionStorage.removeItem("todo.noAutoLogin");
+
+  if (f && f.email && f.password && !suppressed) {
     showWelcome("login");
+    $("#login-email").value = f.email;
+    $("#btn-login").textContent = "Signing in\u2026";
+    $("#btn-login").disabled = true;
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({ email: f.email, password: f.password });
+      if (error) throw error;
+      return startApp(data.user);
+    } catch (e) {
+      welcomeFail("Automatic sign-in failed: " + (e.message || e));
+    } finally {
+      $("#btn-login").textContent = "Sign in";
+      $("#btn-login").disabled = false;
+    }
+    return;
+  }
+
+  showWelcome("login");
+  if (f && f.email) {
+    $("#login-email").value = f.email;
+    setTimeout(() => $("#login-password").focus(), 10);
+  } else {
     setTimeout(() => $("#login-email").focus(), 10);
   }
 }
