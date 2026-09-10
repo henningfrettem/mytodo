@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Todo — import todos.json into Supabase</title>
+<style>
+  :root {
+    --paper: #faf8f3; --paper-2: #ece7db; --ink: #141108; --ink-2: #2f2a22;
+    --mute: #6a6252; --rule: #cdc3ae; --card: #fff; --accent: #a0391c;
+    --err: #8b2e1f; --ok: #2f6b3a; --warn: #a87b2a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 44px 24px; background: var(--paper); color: var(--ink);
+         font: 15px/1.6 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 700px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.02em; }
+  p.sub { color: var(--mute); margin: 0 0 26px; }
+  fieldset { border: 1px solid var(--rule); border-radius: 8px; padding: 4px 20px 20px;
+             margin: 0 0 16px; background: var(--card); }
+  legend { padding: 0 8px; font-size: 11px; text-transform: uppercase;
+           letter-spacing: .12em; color: var(--mute); font-weight: 700; }
+  label { display: block; font-size: 12px; color: var(--ink-2); margin: 12px 0 4px; }
+  input { width: 100%; padding: 10px 12px; font: inherit; border: 1px solid var(--rule);
+          border-radius: 6px; background: var(--paper); color: var(--ink); }
+  button { margin-top: 14px; padding: 10px 18px; font: inherit; font-weight: 600;
+           border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--rule); }
+  #log { font: 12.5px/1.7 ui-monospace, Consolas, monospace; white-space: pre-wrap;
+         background: var(--card); border: 1px solid var(--rule); border-radius: 8px;
+         padding: 16px 18px; max-height: 420px; overflow: auto; margin-top: 18px; }
+  #log:empty { display: none; }
+  .err { color: var(--err); } .ok { color: var(--ok); } .warn { color: var(--warn); }
+  .head { font-weight: 700; margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Import todos.json into Supabase</h1>
+  <p class="sub">
+    Run this once, from Chrome or Edge on the machine holding your folder.
+    It only reads from disk — nothing local is modified or deleted.
+  </p>
+
+  <fieldset>
+    <legend>1 — Project</legend>
+    <label for="url">Project URL</label>
+    <input id="url" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off">
+    <label for="key">Publishable / anon key</label>
+    <input id="key" placeholder="sb_publishable_..." autocomplete="off">
+  </fieldset>
+
+  <fieldset>
+    <legend>2 — Sign in</legend>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username">
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <button id="btn-login">Sign in</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>3 — Import</legend>
+    <p style="margin:0;color:var(--mute);font-size:13.5px">
+      Choose the folder containing <code>todos.json</code> and its <code>assets/</code> subfolder.
+    </p>
+    <button id="btn-import" disabled>Choose folder and import</button>
+    <button id="btn-wipe" class="ghost" disabled>Erase remote data first</button>
+  </fieldset>
+
+  <div id="log"></div>
+</main>
+
+<!-- Classic script, so no CORS check applies from a file:// page. Pinned. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const logEl = $("#log");
+let sb = null, userId = null;
+
+function log(msg, cls) {
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  logEl.append(d);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+const head = m => log(m, "head");
+
+if (typeof supabase === "undefined") {
+  log("Could not load the Supabase library from the CDN.", "err");
+  log("Check your connection, or tell Claude — the app itself bundles it and is unaffected.", "err");
+}
+
+function client() {
+  const url = $("#url").value.trim().replace(/\/+$/, "");
+  const key = $("#key").value.trim();
+  if (!url || !key) { log("Fill in the project URL and key first.", "err"); return null; }
+  return supabase.createClient(url, key, { db: { schema: "todo" } });
+}
+
+$("#btn-login").addEventListener("click", async () => {
+  sb = client();
+  if (!sb) return;
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: $("#email").value.trim(), password: $("#pw").value
+  });
+  if (error) return log("Sign-in failed: " + error.message, "err");
+  userId = data.user.id;
+  log("Signed in as " + data.user.email, "ok");
+  $("#btn-import").disabled = false;
+  $("#btn-wipe").disabled = false;
+});
+
+$("#btn-wipe").addEventListener("click", async () => {
+  if (!window.confirm("Delete every folder, category and task currently in Supabase?\n\nYour local todos.json is not touched.")) return;
+  for (const t of ["tasks", "categories", "folders"]) {
+    const { error } = await sb.from(t).delete().eq("user_id", userId);
+    log(error ? `Failed clearing ${t}: ${error.message}` : `Cleared ${t}`, error ? "err" : "ok");
+  }
+});
+
+$("#btn-import").addEventListener("click", async () => {
+  if (!("showDirectoryPicker" in window)) {
+    return log("This browser has no File System Access API. Use Chrome or Edge on desktop.", "err");
+  }
+  let dir;
+  try {
+    dir = await window.showDirectoryPicker({ mode: "read" });
+  } catch (e) {
+    if (e.name !== "AbortError") log(e.message, "err");
+    return;
+  }
+  $("#btn-import").disabled = true;
+  try {
+    await runImport(dir);
+  } catch (e) {
+    console.error(e);
+    log("Import failed: " + (e.message || e), "err");
+  }
+  $("#btn-import").disabled = false;
+});
+
+// Insert in chunks — a single 224-row request is fine, but chunking keeps the
+// error message pointed at a small batch when something does go wrong.
+async function insertAll(table, rows) {
+  if (!rows.length) { log(`  ${table}: nothing to insert`); return 0; }
+  let done = 0;
+  for (let i = 0; i < rows.length; i += 100) {
+    const chunk = rows.slice(i, i + 100);
+    const { error } = await sb.from(table).insert(chunk);
+    if (error) throw new Error(`${table} rows ${i}-${i + chunk.length - 1}: ${error.message}`);
+    done += chunk.length;
+  }
+  log(`  ${table}: ${done} inserted`, "ok");
+  return done;
+}
+
+async function runImport(dir) {
+  logEl.textContent = "";
+
+  head("Checking the destination is empty");
+  const existing = await sb.from("folders").select("id").limit(1);
+  if (existing.error) throw existing.error;
+  if (existing.data.length) {
+    log("Supabase already holds folders. Use \"Erase remote data first\" for a clean import.", "warn");
+    return;
+  }
+  log("  empty, good", "ok");
+
+  head("Reading todos.json");
+  const fh = await dir.getFileHandle("todos.json");
+  const data = JSON.parse(await (await fh.getFile()).text());
+  const folders = data.folders || [];
+  const tasks = data.tasks || [];
+  log(`  ${folders.length} folders, ${tasks.length} tasks`);
+
+  head("Uploading images");
+  const renamed = new Map();          // "assets/x.png" -> "sb:x.png"
+  try {
+    const assets = await dir.getDirectoryHandle("assets");
+    for await (const [name, handle] of assets.entries()) {
+      if (handle.kind !== "file") continue;
+      const file = await handle.getFile();
+      const { error } = await sb.storage.from("todo-images")
+        .upload(`${userId}/${name}`, file, { contentType: file.type || "image/png", upsert: true });
+      if (error) { log(`  ${name}: ${error.message}`, "err"); continue; }
+      renamed.set(`assets/${name}`, `sb:${name}`);
+      log(`  uploaded ${name} (${Math.round(file.size / 1024)}kb)`);
+    }
+    if (!renamed.size) log("  no images found");
+  } catch {
+    log("  no assets/ folder — skipping images", "warn");
+  }
+
+  // Markdown keeps pointing at the same filename, only the prefix changes,
+  // so the app can tell a Storage object from a legacy local path.
+  const rewrite = text => {
+    let out = text || "";
+    for (const [from, to] of renamed) out = out.split(`(${from})`).join(`(${to})`);
+    return out;
+  };
+
+  head("Uploading folders and categories");
+  const folderRows = folders.map((f, i) => ({
+    id: f.id, user_id: userId, name: f.name, position: i
+  }));
+  const catRows = [];
+  folders.forEach(f => (f.categories || []).forEach((c, i) => {
+    catRows.push({ id: c.id, user_id: userId, folder_id: f.id, name: c.name, position: i });
+  }));
+  await insertAll("folders", folderRows);
+  await insertAll("categories", catRows);
+
+  head("Uploading tasks");
+  const catFolder = new Map(catRows.map(c => [c.id, c.folder_id]));
+  const perCat = new Map();
+  const taskRows = [];
+  let orphans = 0;
+  for (const t of tasks) {
+    if (!catFolder.has(t.categoryId)) { orphans++; continue; }
+    const n = perCat.get(t.categoryId) || 0;
+    perCat.set(t.categoryId, n + 1);
+    taskRows.push({
+      id: t.id,
+      user_id: userId,
+      folder_id: catFolder.get(t.categoryId),
+      category_id: t.categoryId,
+      subject: (t.subject || "").slice(0, 500),
+      description: rewrite(t.description),
+      completed: !!t.completed,
+      important: !!t.important,
+      due_date: t.dueDate || null,
+      position: n,
+      created_at: t.createdAt || new Date().toISOString(),
+      completed_at: t.completedAt || null
+    });
+  }
+  if (orphans) log(`  ${orphans} task(s) skipped — their category no longer exists`, "warn");
+  await insertAll("tasks", taskRows);
+
+  head("Verifying");
+  const [f2, c2, t2] = await Promise.all([
+    sb.from("folders").select("id", { count: "exact", head: true }),
+    sb.from("categories").select("id", { count: "exact", head: true }),
+    sb.from("tasks").select("id", { count: "exact", head: true })
+  ]);
+  log(`  folders in Supabase   : ${f2.count}  (local ${folderRows.length})`, f2.count === folderRows.length ? "ok" : "err");
+  log(`  categories in Supabase: ${c2.count}  (local ${catRows.length})`, c2.count === catRows.length ? "ok" : "err");
+  log(`  tasks in Supabase     : ${t2.count}  (local ${taskRows.length})`, t2.count === taskRows.length ? "ok" : "err");
+
+  const good = f2.count === folderRows.length && c2.count === catRows.length && t2.count === taskRows.length;
+  head("Done");
+  log(good ? "Import complete and counts match." : "Counts do not match — check the errors above.",
+      good ? "ok" : "err");
+  log("Your todos.json and assets/ are untouched. Keep them until you are happy.", "warn");
+}
+</script>
+</body>
+</html>

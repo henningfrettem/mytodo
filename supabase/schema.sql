@@ -117,3 +117,29 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ---------- Storage bucket for pasted images ----------
+-- Buckets are global to the instance, so the name is project-prefixed.
+-- Private: files are reachable only through short-lived signed URLs.
+
+insert into storage.buckets (id, name, public)
+  values ('todo-images', 'todo-images', false)
+  on conflict (id) do nothing;
+
+-- These policies live on the shared storage.objects table alongside every
+-- other project's, hence the project-prefixed names. Each user can only touch
+-- files under their own uid, which is the path prefix the app uploads to.
+
+drop policy if exists todo_images_select on storage.objects;
+drop policy if exists todo_images_insert on storage.objects;
+drop policy if exists todo_images_update on storage.objects;
+drop policy if exists todo_images_delete on storage.objects;
+
+create policy todo_images_select on storage.objects for select
+  using  (bucket_id = 'todo-images' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy todo_images_insert on storage.objects for insert
+  with check (bucket_id = 'todo-images' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy todo_images_update on storage.objects for update
+  using  (bucket_id = 'todo-images' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy todo_images_delete on storage.objects for delete
+  using  (bucket_id = 'todo-images' and (storage.foldername(name))[1] = auth.uid()::text);
