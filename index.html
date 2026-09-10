@@ -1926,6 +1926,10 @@ folderMenu.addEventListener("click", e => {
     class: "dropdown-item dropdown-item-muted", role: "menuitem",
     onclick: () => { dd.remove(); clearCompletedPrompt(); }
   }, "Clear completed > 90 days…"));
+  dd.append(el("button", {
+    class: "dropdown-item dropdown-item-muted", role: "menuitem",
+    onclick: () => { dd.remove(); exportBoard(); }
+  }, "Export everything as JSON"));
   folderMenuWrap.append(dd);
   const closeOnOutside = ev => {
     if (!dd.contains(ev.target) && !folderMenu.contains(ev.target)) {
@@ -2866,6 +2870,66 @@ $("#folder-create").addEventListener("click", () => {
 $("#folder-new-name").addEventListener("keydown", e => {
   if (e.key === "Enter") $("#folder-create").click();
 });
+
+/* ---------- Export ---------- */
+// Deliberately the same shape the old todos.json used, so the file is readable
+// by eye and can be fed back through migrate.html if it ever comes to that.
+// Images are not included: they live in Storage and the markdown only carries
+// an "sb:" reference to them.
+function exportBoard() {
+  if (!state) return;
+
+  // Derive the folder from the category rather than trusting task.folderId,
+  // which is only incidentally kept in step when a card moves.
+  const catFolder = new Map();
+  state.folders.forEach(f => (f.categories || []).forEach(c => catFolder.set(c.id, f.id)));
+
+  const payload = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    folders: state.folders.map(f => ({
+      id: f.id,
+      name: f.name,
+      categories: (f.categories || []).map(c => ({ id: c.id, name: c.name }))
+    })),
+    tasks: state.tasks
+      .filter(t => catFolder.has(t.categoryId))
+      .map(t => ({
+        id: t.id,
+        folderId: catFolder.get(t.categoryId),
+        categoryId: t.categoryId,
+        subject: t.subject || "",
+        description: t.description || "",
+        completed: !!t.completed,
+        important: !!t.important,
+        dueDate: t.dueDate || null,
+        createdAt: t.createdAt,
+        completedAt: t.completedAt || null
+      })),
+    activeFolderId: state.activeFolderId
+  };
+
+  const images = new Set();
+  payload.tasks.forEach(t => {
+    const re = /!\[[^\]]*\]\((sb:[^)]+)\)/g;
+    let m;
+    while ((m = re.exec(t.description))) images.add(m[1]);
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = el("a", { href: url, download: `todos-${stamp}.json` });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  const note = images.size
+    ? `${payload.tasks.length} tasks exported \u2014 ${images.size} image(s) stay in Storage`
+    : `${payload.tasks.length} tasks exported`;
+  toast(note, { duration: 6000 });
+}
 
 /* ---------- Clear completed > 90 days ---------- */
 async function clearCompletedPrompt() {

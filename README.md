@@ -43,7 +43,8 @@ several small projects side by side. Storage buckets are global to the instance,
 hence the `todo-` prefix on the bucket and on its policies.
 
 `migrate.html` is the one-shot importer that moved the original `todos.json`
-into Supabase. It is kept for reference and is not needed again.
+into Supabase. It is kept because it documents the field mapping and would be
+the way back in from an export, but it is not needed in normal use.
 
 ## Layout
 
@@ -105,6 +106,15 @@ per view.
 
 The folder dropdown has **Clear completed > 90 days**, which permanently removes
 completed tasks older than that. It asks first.
+
+It also has **Export everything as JSON**, which downloads every folder, category
+and task in the same shape the original `todos.json` used — readable by eye, and
+importable through `migrate.html` if you ever need to rebuild a project. Images
+are not included: they live in Storage, and the export only carries the `sb:`
+reference to them.
+
+Worth doing occasionally. The free Supabase tier takes no automatic backups, so
+this export is the only copy of your data that isn't in the database.
 
 ## Keyboard shortcuts
 
