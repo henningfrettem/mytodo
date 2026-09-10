@@ -41,8 +41,8 @@ A bar along the bottom of the screen lists every keyboard shortcut.
 - Markdown descriptions with a **Write** / **Preview** toggle — bold, italic,
   bulleted and numbered lists, links, and images. Bare URLs are auto-linked
 - Star a task to mark it important
-- Each card shows its age under the checkbox — `3d`, `2w`, `5m`, `1y`. Hover for
-  the exact creation date
+- Each card shows its age in days under the checkbox — `3d`, `140d`, `365d`.
+  Hover for the exact creation date
 - Drag tasks between columns, or to reorder within one
 - Drag a column by its grip to reorder the board
 - Double-click a column name to rename it
