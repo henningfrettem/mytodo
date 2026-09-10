@@ -569,6 +569,24 @@
   .task:hover .task-grip { opacity: 1; }
   .task-grip:active { cursor: grabbing; }
 
+  .task-check-col {
+    flex-shrink: 0;
+    width: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .task-age {
+    font-size: 9.5px;
+    line-height: 1;
+    color: var(--mute-2);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .task.done .task-age { opacity: .6; }
   .task-check {
     flex-shrink: 0;
     width: 16px; height: 16px;
@@ -1434,6 +1452,21 @@ const debounce = (fn, ms) => {
   return wrapped;
 };
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+// Compact enough to sit under a 16px checkbox: 3 characters at most.
+const ageLabel = iso => {
+  if (!iso) return "";
+  const created = new Date(iso);
+  if (isNaN(created)) return "";
+  created.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.max(0, Math.round((today - created) / 86400000));
+  if (days < 7) return days + "d";
+  if (days < 30) return Math.floor(days / 7) + "w";
+  if (days < 365) return Math.floor(days / 30) + "m";
+  return Math.floor(days / 365) + "y";
+};
+
 const fmtDate = iso => {
   if (!iso) return "";
   const d = new Date(iso);
@@ -2014,6 +2047,13 @@ function renderTaskCard(task) {
     onclick: e => { e.stopPropagation(); toggleTask(task); }
   }, svg("check", 10, 10));
 
+  const age = el("span", {
+    class: "task-age",
+    title: task.createdAt ? "Created " + fmtDate(task.createdAt) : ""
+  }, ageLabel(task.createdAt));
+
+  const checkCol = el("div", { class: "task-check-col" }, check, age);
+
   const subject = el("div", { class: "task-subject" }, task.subject || "Untitled");
 
   const indicators = [];
@@ -2046,7 +2086,7 @@ function renderTaskCard(task) {
     onclick: e => { e.stopPropagation(); toggleImportant(task); }
   }, svg("star", 13, 13));
 
-  card.append(grip, check, body, star);
+  card.append(grip, checkCol, body, star);
 
   card.addEventListener("click", () => openTaskModal(task));
   card.addEventListener("focus", () => { focusedTaskId = task.id; });

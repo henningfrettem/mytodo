@@ -26,21 +26,46 @@ button and not automatic.
 ## Layout
 
 Each **folder** is an independent board — switch between them from the dropdown
-in the top left. Within a folder, **categories** are the columns, and tasks live
-inside them. Completed tasks collapse into a section at the bottom of their
-column.
+in the top left, and add a column with the **+** beside it. Within a folder,
+**categories** are the columns, and tasks live inside them. Completed tasks
+collapse into a section at the bottom of their column.
+
+A bar along the bottom of the screen lists every keyboard shortcut.
 
 ## What it does
 
 **Tasks**
 
-- Click a card to open it; `Enter` or `Space` when it's focused does the same
+- Click a card to open it, or press `Enter` when it has focus. `Space` marks it
+  done instead
 - Markdown descriptions with a **Write** / **Preview** toggle — bold, italic,
-  bulleted and numbered lists, links, and images
+  bulleted and numbered lists, links, and images. Bare URLs are auto-linked
 - Star a task to mark it important
+- Each card shows its age under the checkbox — `3d`, `2w`, `5m`, `1y`. Hover for
+  the exact creation date
 - Drag tasks between columns, or to reorder within one
 - Drag a column by its grip to reorder the board
 - Double-click a column name to rename it
+
+**Keyboard navigation**
+
+Cards are focusable and the arrow keys move between them: up/down within a
+column, left/right to the top of the adjacent column. Completed tasks and empty
+columns are skipped. Holding `Ctrl` moves the card itself rather than the focus.
+
+New cards take focus as soon as they're created, so `Enter` opens straight into
+the description with the cursor already in it.
+
+**Due dates**
+
+A task can carry an optional due date, set from the task modal or from quick-add.
+Within three days of it — overdue included — an incomplete task pins to the top
+of its column, sorted soonest-first, and renders in red with an alert icon.
+Dated tasks further out show a muted date. Undated tasks look exactly as they
+would without the feature.
+
+Pinned cards can't be reordered by hand, since due-date order overrides manual
+placement, but they can still be moved between columns.
 
 **Images**
 
@@ -63,11 +88,20 @@ completed tasks older than that. It asks first.
 | Key | Action |
 | --- | --- |
 | `N` | New task (when not typing in a field) |
+| `↑` `↓` | Move focus within a column |
+| `←` `→` | Move focus to the top of the adjacent column |
+| `Ctrl` + arrows | Move the focused card itself |
+| `Enter` | Open the focused card |
+| `Space` | Mark the focused card done |
+| `Esc` | Close the topmost dialog (saving edits), or the search bar |
 | `Ctrl+F` | Search |
-| `Esc` | Close the topmost dialog, or the search bar |
-| `Enter` | Submit from the quick-add subject field |
-| `Ctrl+Enter` | Submit from the quick-add description field |
+| `Space` | In a task's Preview pane, switch to Write |
 | `Ctrl+B` / `Ctrl+I` | Bold / italic, inside a task description |
+| `Ctrl+Enter` | Submit from the quick-add description field |
+
+On a Mac use `⌘` — every shortcut accepts either modifier. Note that macOS
+intercepts `Ctrl`+arrows for Mission Control, so use `⌘`+arrows to move cards
+there. The on-screen legend always says `Ctrl`.
 
 ## Saving
 
@@ -111,6 +145,7 @@ There is no backup beyond the folder. If you lose it, the todos are gone.
       "description": "markdown string",
       "completed": false,
       "important": false,
+      "dueDate": "YYYY-MM-DD or null",
       "createdAt": "ISO 8601",
       "completedAt": null
     }
@@ -120,7 +155,12 @@ There is no backup beyond the folder. If you lose it, the todos are gone.
 ```
 
 Plain JSON, readable and editable by hand if you ever need to. Task order within
-a category is the array order.
+a category is the array order, except that tasks due within three days are
+pinned above the rest at render time.
+
+`dueDate` is a plain date with no time or zone, so "due today" means today
+wherever you happen to be. Tasks written before the field existed simply omit
+it and read as undated — no migration needed.
 
 `TODO_APP_SPEC.md` holds the original build spec. It's kept for reference and
 has drifted from the implementation in places — the code is the source of truth.
