@@ -125,7 +125,15 @@ per view.
 
 **Search**
 
-`Ctrl+F` searches subjects and descriptions within the current folder.
+`Ctrl+F` opens a search dialog in the middle of the screen. It covers subjects
+and notes across **every** folder and includes **completed** tasks — those live
+in collapsed sections, so a board filter could never have surfaced them.
+
+Arrow keys move through the results, `Enter` opens the highlighted card on top
+of the dialog with the search still underneath, and `Esc` closes the card first
+and the search second. Each result shows its folder and column, a snippet of the
+notes when the match was there rather than in the subject, and a badge if the
+task is done or due. Opening a result in another folder switches the board to it.
 
 **Housekeeping**
 
@@ -151,7 +159,7 @@ this export is the only copy of your data that isn't in the database.
 | `Ctrl` + arrows | Move the focused card itself |
 | `Enter` | Open the focused card |
 | `Space` | Mark the focused card done |
-| `Esc` | Close the topmost dialog (saving edits), or the search bar |
+| `Esc` | Close the topmost dialog (saving edits), then the search |
 | `Ctrl+F` | Search |
 | `Space` | In a task's Preview pane, switch to Write |
 | `Ctrl+B` / `Ctrl+I` | Bold / italic, inside a task description |

@@ -242,8 +242,8 @@
   /* ---------- App Layout ---------- */
   #app {
     height: 100vh;
-    display: grid;
-    grid-template-rows: auto auto 1fr;
+    display: flex;
+    flex-direction: column;
   }
 
   .topbar {
@@ -369,26 +369,116 @@
   .file-dot[data-state="error"] { background: var(--err); box-shadow: 0 0 0 2px rgba(139, 46, 31, .2); }
 
   /* ---------- Search ---------- */
-  .searchbar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 24px;
-    border-bottom: 1px solid var(--rule-soft);
-    background: var(--paper-2);
-    animation: slide-down .2s var(--r);
+  /* Below .modal's 200 so the task modal opens on top with search still
+     visible underneath. */
+  #search-modal { z-index: 190; align-items: flex-start; padding-top: 12vh; }
+  /* .modal-panel sets its own max-height later in this sheet, so this needs
+     both classes to win on specificity rather than source order. */
+  .modal-panel.search-panel {
+    width: 640px;
+    max-width: 100%;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
-  .searchbar svg { color: var(--mute); flex-shrink: 0; }
-  .searchbar input {
+  .search-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rule-soft);
+    flex: 0 0 auto;
+  }
+  .search-head svg { color: var(--mute); flex-shrink: 0; }
+  .search-input {
     flex: 1;
     border: 0;
     background: transparent;
-    font-size: 14px;
+    font-family: var(--font-body);
+    font-size: 16px;
+    color: var(--ink);
     outline: none;
-    padding: 4px 0;
+    padding: 2px 0;
   }
-  .searchbar-count { color: var(--mute); font-size: 12px; }
+  .search-input::placeholder { color: var(--mute-2); }
+  .search-count { color: var(--mute); font-size: 12px; white-space: nowrap; }
+  .search-results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  .search-empty { padding: 28px 16px; text-align: center; color: var(--mute); font-size: 13px; }
+  .search-hit {
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .search-hit:hover { background: var(--paper-2); }
+  .search-hit.active {
+    background: var(--accent-ghost);
+    border-color: var(--accent-soft);
+  }
+  .search-hit-subject {
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .search-hit.done .search-hit-subject { color: var(--mute); }
+  .search-hit-excerpt {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--mute);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .search-hit-meta {
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--mute-2);
+  }
+  .search-hit-badge {
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--paper-2);
+    color: var(--mute);
+  }
+  .search-hit-badge.due { background: rgba(192, 40, 26, .1); color: var(--due); }
+  .search-mark { background: rgba(168, 123, 42, .28); border-radius: 2px; }
+  .search-foot {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 14px;
+    padding: 8px 20px;
+    border-top: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+    font-size: 11px;
+    color: var(--mute);
+  }
+  .search-foot span { display: inline-flex; align-items: center; gap: 4px; }
+  .search-foot kbd {
+    font-size: 10px; padding: 1px 4px; line-height: 1.5;
+    border: 1px solid var(--rule); border-radius: 3px;
+    background: var(--paper); color: var(--mute);
+  }
 
-  /* ---------- Board ---------- */
+  /* ---------- Board ---------- */  /* ---------- Board ---------- */
   .board {
+    flex: 1;
+    min-height: 0;
     display: flex;
     gap: 14px;
     padding: 22px 24px 44px;
@@ -502,9 +592,16 @@
     background: var(--card-hover);
   }
 
-  .column-tasks {
+  .column-body {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .column-tasks {
+    flex: 1 0 auto;
     overflow-x: hidden;
     padding: 6px 12px 6px;
     display: flex;
@@ -620,7 +717,7 @@
     opacity: .5;
     background: transparent;
   }
-  .task.done .task-subject { text-decoration: line-through; color: var(--mute); }
+  .task.done .task-subject { color: var(--mute); }
 
   .task-body { flex: 1; min-width: 0; }
   .task-subject {
@@ -681,10 +778,6 @@
   .task:hover .task-delete { opacity: 1; }
   .task-delete:hover { background: rgba(139, 46, 31, .08); color: var(--err); }
 
-  .task-search-match {
-    background: rgba(194, 107, 67, .08);
-    border-color: var(--accent-soft);
-  }
 
   .task.important {
     background: #fce4db;
@@ -745,7 +838,7 @@
   }
 
   /* ---------- Completed section ---------- */
-  .completed-section { padding: 4px 12px 12px; border-top: 1px solid var(--rule-soft); margin-top: 6px; }
+  .completed-section { flex: 0 0 auto; padding: 4px 12px 12px; border-top: 1px solid var(--rule-soft); margin-top: 6px; }
   .completed-toggle {
     display: flex; align-items: center; gap: 6px;
     width: 100%;
@@ -1297,15 +1390,6 @@
     <button id="error-banner-action">Reload</button>
   </div>
 
-  <div id="search-bar" class="searchbar" hidden>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-    <input id="search-input" placeholder="Search by subject or description" autocomplete="off">
-    <span class="searchbar-count" id="search-count"></span>
-    <button class="iconbtn" id="search-close" aria-label="Close search" title="Close (Esc)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-
   <main id="board" class="board"></main>
 
   <footer class="shortcut-bar" aria-label="Keyboard shortcuts">
@@ -1323,6 +1407,24 @@
     <span><kbd>Ctrl</kbd><kbd>B</kbd>/<kbd>I</kbd> bold, italic</span>
     <span><kbd>Space</kbd> in preview edits notes</span>
   </footer>
+</div>
+
+<!-- Search -->
+<div id="search-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close="search"></div>
+  <div class="modal-panel search-panel" role="dialog" aria-modal="true" aria-label="Search tasks">
+    <div class="search-head">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="search-input" class="search-input" placeholder="Search every folder&hellip;" autocomplete="off" spellcheck="false">
+      <span class="search-count" id="search-count"></span>
+    </div>
+    <div id="search-results" class="search-results"></div>
+    <div class="search-foot">
+      <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span>
+      <span><kbd>Enter</kbd> open</span>
+      <span><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
 </div>
 
 <!-- Task detail modal -->
@@ -1951,7 +2053,6 @@ function currentFolder() {
 
 /* ---------- Board rendering ---------- */
 const boardEl = $("#board");
-let searchQuery = "";
 
 function tasksForCategory(catId, { completed = false } = {}) {
   return state.tasks.filter(t => t.categoryId === catId && !!t.completed === completed);
@@ -2118,7 +2219,8 @@ function renderColumn(folder, cat) {
 
   const completedSection = renderCompletedSection(cat, doneTasks);
 
-  col.append(header, addWrap, taskList, completedSection);
+  const body = el("div", { class: "column-body" }, taskList, completedSection);
+  col.append(header, addWrap, body);
 
   setupColumnDropZones(col, cat, taskList);
 
@@ -2222,9 +2324,6 @@ function renderTaskCard(task) {
     clearDropMarkers();
   });
 
-  if (searchQuery && matchesSearch(task, searchQuery)) {
-    card.classList.add("task-search-match");
-  }
 
   return card;
 }
@@ -2589,6 +2688,13 @@ function closeTaskModal() {
   releaseFocusTrap();
   blurInside(taskModal);
   renderBoard();
+  if (searchOpen()) {
+    // The edit may have changed what matches, so refresh the list but hold
+    // the selection on the same task.
+    renderSearch({ keepIndex: true });
+    focusTrap(searchModal);
+    setTimeout(() => searchInput.focus(), 10);
+  }
 }
 
 function updateTaskMeta(task) {
@@ -2952,37 +3058,177 @@ async function clearCompletedPrompt() {
 }
 
 /* ---------- Search ---------- */
-const searchBar = $("#search-bar");
+// A modal rather than a board filter: completed tasks live in collapsed
+// sections, so filtering the board could never surface them.
+const searchModal = $("#search-modal");
 const searchInput = $("#search-input");
 const searchCount = $("#search-count");
+const searchResults = $("#search-results");
+
+let searchHits = [];
+let searchIndex = 0;
+
+function searchOpen() { return !searchModal.hidden; }
+
 function openSearch() {
-  searchBar.hidden = false;
+  searchModal.hidden = false;
+  searchInput.value = "";
+  renderSearch();
+  focusTrap(searchModal);
   setTimeout(() => searchInput.focus(), 10);
 }
-function closeSearch() {
-  searchBar.hidden = true;
-  searchInput.value = "";
-  searchQuery = "";
-  searchCount.textContent = "";
-  renderBoard();
-}
-searchInput.addEventListener("input", () => {
-  searchQuery = searchInput.value.trim().toLowerCase();
-  const count = searchQuery
-    ? state.tasks.filter(t => matchesSearch(t, searchQuery)).length
-    : 0;
-  searchCount.textContent = searchQuery ? `${count} match${count === 1 ? "" : "es"}` : "";
-  renderBoard();
-});
-$("#search-close").addEventListener("click", closeSearch);
-$("#btn-search").addEventListener("click", () => searchBar.hidden ? openSearch() : closeSearch());
 
-function matchesSearch(t, q) {
-  if (!q) return false;
-  if (t.folderId !== state.activeFolderId) return false;
-  const hay = (t.subject + " " + (t.description || "")).toLowerCase();
-  return hay.includes(q);
+function closeSearch() {
+  searchModal.hidden = true;
+  searchInput.value = "";
+  searchHits = [];
+  searchIndex = 0;
+  searchResults.innerHTML = "";
+  searchCount.textContent = "";
+  releaseFocusTrap();
+  // The query box still holds focus here, and restoreBoardFocus defers to any
+  // focused text field, so hand focus back before asking for it.
+  blurInside(searchModal);
+  restoreBoardFocus();
 }
+
+// Every folder, and completed tasks too. Open tasks rank above completed ones;
+// within each group board order is kept, so results read predictably.
+function findTasks(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const meta = new Map();
+  state.folders.forEach(f => (f.categories || []).forEach(c =>
+    meta.set(c.id, { folder: f.name, folderId: f.id, category: c.name })));
+
+  const hits = [];
+  for (const t of state.tasks) {
+    if (!meta.has(t.categoryId)) continue;
+    const subject = (t.subject || "").toLowerCase();
+    const desc = (t.description || "").toLowerCase();
+    if (!subject.includes(q) && !desc.includes(q)) continue;
+    hits.push(Object.assign({ task: t }, meta.get(t.categoryId)));
+  }
+  return hits.sort((a, b) => (a.task.completed ? 1 : 0) - (b.task.completed ? 1 : 0));
+}
+
+// Enough of the description to show why a card matched, centred on the hit.
+function excerptAround(text, q) {
+  const flat = (text || "").replace(/\s+/g, " ");
+  const at = flat.toLowerCase().indexOf(q);
+  if (at < 0) return "";
+  const from = Math.max(0, at - 40);
+  const to = Math.min(flat.length, at + q.length + 80);
+  return (from > 0 ? "\u2026" : "") + flat.slice(from, to) + (to < flat.length ? "\u2026" : "");
+}
+
+// Built as nodes rather than innerHTML so a task's own text can never be
+// interpreted as markup.
+function markMatch(text, q) {
+  const frag = document.createDocumentFragment();
+  const lower = text.toLowerCase();
+  let at = 0;
+  for (;;) {
+    const i = q ? lower.indexOf(q, at) : -1;
+    if (i < 0) { frag.append(text.slice(at)); break; }
+    frag.append(text.slice(at, i));
+    frag.append(el("span", { class: "search-mark" }, text.slice(i, i + q.length)));
+    at = i + q.length;
+  }
+  return frag;
+}
+
+function renderSearch(opts) {
+  const keepIndex = !!(opts && opts.keepIndex);
+  const raw = searchInput.value.trim();
+  const q = raw.toLowerCase();
+  const previous = keepIndex ? searchHits[searchIndex] : null;
+  searchHits = findTasks(raw);
+
+  if (keepIndex && previous) {
+    const again = searchHits.findIndex(h => h.task.id === previous.task.id);
+    searchIndex = again >= 0 ? again : 0;
+  } else {
+    searchIndex = 0;
+  }
+
+  searchCount.textContent = raw
+    ? `${searchHits.length} match${searchHits.length === 1 ? "" : "es"}`
+    : "";
+  searchResults.innerHTML = "";
+
+  if (!raw) {
+    searchResults.append(el("div", { class: "search-empty" },
+      "Search subjects and notes across every folder, completed included."));
+    return;
+  }
+  if (!searchHits.length) {
+    searchResults.append(el("div", { class: "search-empty" }, `Nothing matches "${raw}".`));
+    return;
+  }
+
+  searchHits.forEach((hit, i) => {
+    const t = hit.task;
+    const subject = el("div", { class: "search-hit-subject" });
+    subject.append(markMatch(t.subject || "Untitled", q));
+
+    // Only show a snippet when the match is in the notes, not the subject.
+    const snippet = (t.subject || "").toLowerCase().includes(q)
+      ? "" : excerptAround(t.description || "", q);
+    const excerpt = snippet ? el("div", { class: "search-hit-excerpt" }) : null;
+    if (excerpt) excerpt.append(markMatch(snippet, q));
+
+    const meta = el("div", { class: "search-hit-meta" },
+      t.completed ? el("span", { class: "search-hit-badge" }, "Done") : null,
+      (!t.completed && isUrgent(t))
+        ? el("span", { class: "search-hit-badge due" }, dueLabel(t)) : null,
+      el("span", {}, `${hit.folder} \u203a ${hit.category}`)
+    );
+
+    searchResults.append(el("div", {
+      class: "search-hit" + (i === searchIndex ? " active" : "") + (t.completed ? " done" : ""),
+      dataset: { idx: String(i) },
+      onclick: () => { searchIndex = i; paintSearchSelection(); openSearchHit(); }
+    }, subject, excerpt, meta));
+  });
+}
+
+function paintSearchSelection() {
+  $$(".search-hit", searchResults).forEach((row, i) => {
+    const on = i === searchIndex;
+    row.classList.toggle("active", on);
+    if (on) row.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function moveSearch(delta) {
+  if (!searchHits.length) return;
+  searchIndex = Math.min(searchHits.length - 1, Math.max(0, searchIndex + delta));
+  paintSearchSelection();
+}
+
+// The task modal is z-index 200, above the search modal's 190, so search stays
+// visible underneath and is still there once the task is closed.
+function openSearchHit() {
+  const hit = searchHits[searchIndex];
+  if (!hit) return;
+  if (hit.folderId !== state.activeFolderId) {
+    state.activeFolderId = hit.folderId;
+    save();
+    updateFolderLabel();
+    renderBoard();
+  }
+  openTaskModal(hit.task);
+}
+
+searchInput.addEventListener("input", () => renderSearch());
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") { e.preventDefault(); moveSearch(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); moveSearch(-1); }
+  else if (e.key === "Enter") { e.preventDefault(); openSearchHit(); }
+});
+
+$("#btn-search").addEventListener("click", () => searchOpen() ? closeSearch() : openSearch());
 
 /* ---------- Card focus + arrow navigation ---------- */
 // renderBoard() tears the board down and rebuilds it on every mutation, so
@@ -3004,7 +3250,7 @@ function isTypingTarget(node) {
 
 function anyModalOpen() {
   return !taskModal.hidden || !quickModal.hidden || !categoryModal.hidden ||
-         !foldersModal.hidden || !$("#confirm-modal").hidden;
+         !foldersModal.hidden || !searchModal.hidden || !$("#confirm-modal").hidden;
 }
 
 // Columns holding at least one open task. Completed tasks render into a
@@ -3089,12 +3335,11 @@ document.addEventListener("keydown", e => {
 
 /* ---------- Keyboard shortcuts ---------- */
 document.addEventListener("keydown", e => {
-  // "n" — quick add (when not typing in a field)
+  // "n" — quick add. Guarded on any open dialog, not just on focus being in a
+  // text field: the task modal's preview pane is a focusable div, so the field
+  // check alone let N stack quick-add on top of an open task.
   if ((e.key === "n" || e.key === "N") && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (!state) return;
-    const tag = e.target.tagName;
-    const editing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable;
-    if (editing) return;
+    if (!state || anyModalOpen() || isTypingTarget(e.target)) return;
     e.preventDefault();
     openQuickAdd();
     return;
@@ -3103,6 +3348,8 @@ document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
     if (!state) return;
     e.preventDefault();
+    if (searchOpen()) { searchInput.focus(); searchInput.select(); return; }
+    if (anyModalOpen()) return;
     openSearch();
     return;
   }
@@ -3111,7 +3358,7 @@ document.addEventListener("keydown", e => {
     else if (!quickModal.hidden) closeQuickAdd();
     else if (!taskModal.hidden) closeTaskModal();
     else if (!foldersModal.hidden) closeFoldersModal();
-    else if (!searchBar.hidden) closeSearch();
+    else if (searchOpen()) closeSearch();
   }
 });
 
