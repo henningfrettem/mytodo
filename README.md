@@ -28,6 +28,31 @@ deliberately overrides auto sign-in for that one page load.
 **The app needs an internet connection.** There is no offline mode: without a
 route to Supabase it cannot load your board.
 
+## Running it as a desktop app
+
+Chrome's **Create shortcut** / **Install page as app** menu item is greyed out
+for `file://` pages in current versions — installing as a PWA needs a manifest
+served over HTTPS or localhost, and Chrome won't offer it for a local file no
+matter what the page declares.
+
+The way through is Chrome's `--app=` flag on an ordinary Windows shortcut:
+
+```
+powershell -ExecutionPolicy Bypass -File make-shortcut.ps1
+```
+
+That puts a **Todo** shortcut on your desktop, using `todo.ico`, which opens the
+app in its own window with no address bar and its own taskbar and Alt-Tab entry.
+Right-click it to pin to the taskbar.
+
+The shortcut deliberately does *not* pass `--user-data-dir`. The app window needs
+the ordinary Chrome profile: its own profile would mean its own `localStorage`,
+so a fresh setup screen and a lost session on every launch.
+
+Hosting the file instead — any static host, no build step — would make it a real
+installable PWA on desktop and phone, since the app already needs the network for
+Supabase anyway.
+
 ## Setting up a fresh project
 
 1. Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL Editor.
