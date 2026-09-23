@@ -461,6 +461,8 @@
   .search-foot {
     flex: 0 0 auto;
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 14px;
     padding: 8px 20px;
     border-top: 1px solid var(--rule-soft);
@@ -468,7 +470,23 @@
     font-size: 11px;
     color: var(--mute);
   }
+  .search-foot-keys { display: flex; gap: 14px; }
   .search-foot span { display: inline-flex; align-items: center; gap: 4px; }
+  .search-scope {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .search-scope input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
   .search-foot kbd {
     font-size: 10px; padding: 1px 4px; line-height: 1.5;
     border: 1px solid var(--rule); border-radius: 3px;
@@ -1490,14 +1508,20 @@
   <div class="modal-panel search-panel" role="dialog" aria-modal="true" aria-label="Search tasks">
     <div class="search-head">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="search-input" class="search-input" placeholder="Search every folder&hellip;" autocomplete="off" spellcheck="false">
+      <input id="search-input" class="search-input" placeholder="Search tasks&hellip;" autocomplete="off" spellcheck="false">
       <span class="search-count" id="search-count"></span>
     </div>
     <div id="search-results" class="search-results"></div>
     <div class="search-foot">
-      <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span>
-      <span><kbd>Enter</kbd> open</span>
-      <span><kbd>Esc</kbd> close</span>
+      <label class="search-scope" for="search-all-folders">
+        <input id="search-all-folders" type="checkbox">
+        <span>All folders</span>
+      </label>
+      <div class="search-foot-keys">
+        <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span>
+        <span><kbd>Enter</kbd> open</span>
+        <span><kbd>Esc</kbd> close</span>
+      </div>
     </div>
   </div>
 </div>
@@ -3213,22 +3237,32 @@ function exportBoard() {
 
 /* ---------- Clear completed > 90 days ---------- */
 async function clearCompletedPrompt() {
+  const folder = currentFolder();
+  if (!folder) return;
+  // Scoped to the folder whose menu this was opened from. Membership comes from
+  // the category rather than task.folderId, which is only incidentally correct.
+  const catIds = new Set((folder.categories || []).map(c => c.id));
   const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
-  const victims = state.tasks.filter(t => t.completed && t.completedAt && new Date(t.completedAt).getTime() < cutoff);
+  const victims = state.tasks.filter(t =>
+    catIds.has(t.categoryId) && t.completed && t.completedAt &&
+    new Date(t.completedAt).getTime() < cutoff);
+
   if (victims.length === 0) {
-    toast("Nothing to clear — no completed tasks older than 90 days.");
+    toast(`Nothing to clear in "${folder.name}" — no completed tasks older than 90 days.`);
     return;
   }
   const yes = await confirm({
     title: `Delete ${victims.length} old completed task${victims.length === 1 ? "" : "s"}?`,
-    text: "These are completed tasks older than 90 days. They'll be permanently removed. The JSON file stays, as do any images still referenced by other tasks.",
+    text: `Completed in "${folder.name}" more than 90 days ago. They are deleted from `
+      + `the database permanently and there is no undo — export first if you want a copy. `
+      + `Your other folders are untouched. Any images these tasks used stay in storage.`,
     okLabel: "Delete"
   });
   if (!yes) return;
   state.tasks = state.tasks.filter(t => !victims.includes(t));
   save();
   renderBoard();
-  toast(`Cleared ${victims.length} task${victims.length === 1 ? "" : "s"}.`);
+  toast(`Cleared ${victims.length} task${victims.length === 1 ? "" : "s"} from "${folder.name}".`);
 }
 
 /* ---------- Search ---------- */
@@ -3238,6 +3272,7 @@ const searchModal = $("#search-modal");
 const searchInput = $("#search-input");
 const searchCount = $("#search-count");
 const searchResults = $("#search-results");
+const searchAllFolders = $("#search-all-folders");
 
 let searchHits = [];
 let searchIndex = 0;
@@ -3247,6 +3282,7 @@ function searchOpen() { return !searchModal.hidden; }
 function openSearch() {
   searchModal.hidden = false;
   searchInput.value = "";
+  searchAllFolders.checked = false;
   renderSearch();
   focusTrap(searchModal);
   setTimeout(() => searchInput.focus(), 10);
@@ -3271,12 +3307,17 @@ function closeSearch() {
 function findTasks(query) {
   const q = query.trim().toLowerCase();
   if (!q) return [];
+  // Restricting the category map is enough: a task whose category isn't in it
+  // is skipped below, so no separate folder filter is needed.
+  const everywhere = searchAllFolders.checked;
   const meta = new Map();
-  state.folders.forEach(f => (f.categories || []).forEach(c =>
-    meta.set(c.id, {
-      folder: f.name, folderId: f.id, category: c.name,
-      catId: c.id, hidden: categoryHidden(c)
-    })));
+  state.folders
+    .filter(f => everywhere || f.id === state.activeFolderId)
+    .forEach(f => (f.categories || []).forEach(c =>
+      meta.set(c.id, {
+        folder: f.name, folderId: f.id, category: c.name,
+        catId: c.id, hidden: categoryHidden(c)
+      })));
 
   const hits = [];
   for (const t of state.tasks) {
@@ -3336,7 +3377,9 @@ function renderSearch(opts) {
 
   if (!raw) {
     searchResults.append(el("div", { class: "search-empty" },
-      "Search subjects and notes across every folder, completed included."));
+      searchAllFolders.checked
+        ? "Searching every folder, completed tasks included."
+        : `Searching "${(currentFolder() || {}).name || ""}", completed tasks included.`));
     return;
   }
   if (!searchHits.length) {
@@ -3362,7 +3405,8 @@ function renderSearch(opts) {
       t.completed ? el("span", { class: "search-hit-badge" }, "Done") : null,
       (!t.completed && isUrgent(t))
         ? el("span", { class: "search-hit-badge due" }, dueLabel(t)) : null,
-      el("span", {}, `${hit.folder} \u203a ${hit.category}`)
+      el("span", {}, searchAllFolders.checked
+        ? `${hit.folder} \u203a ${hit.category}` : hit.category)
     );
 
     searchResults.append(el("div", {
@@ -3403,6 +3447,10 @@ function openSearchHit() {
 }
 
 searchInput.addEventListener("input", () => renderSearch());
+searchAllFolders.addEventListener("change", () => {
+  renderSearch();
+  searchInput.focus();
+});
 searchInput.addEventListener("keydown", e => {
   if (e.key === "ArrowDown") { e.preventDefault(); moveSearch(1); }
   else if (e.key === "ArrowUp") { e.preventDefault(); moveSearch(-1); }

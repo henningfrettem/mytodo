@@ -148,19 +148,27 @@ from someone with access to the data.
 **Search**
 
 `Ctrl+F` opens a search dialog in the middle of the screen. It covers subjects
-and notes across **every** folder and includes **completed** tasks — those live
-in collapsed sections, so a board filter could never have surfaced them.
+and notes in the **current folder** and includes **completed** tasks — those live
+in collapsed sections, so a board filter could never have surfaced them. Tick
+**All folders** in the footer to widen it; that resets to the current folder each
+time the dialog opens.
 
 Arrow keys move through the results, `Enter` opens the highlighted card on top
 of the dialog with the search still underneath, and `Esc` closes the card first
-and the search second. Each result shows its folder and column, a snippet of the
+and the search second. Each result shows its column — and its folder too when
+searching all folders — a snippet of the
 notes when the match was there rather than in the subject, and a badge if the
 task is done or due. Opening a result in another folder switches the board to it.
 
 **Housekeeping**
 
 The folder dropdown has **Clear completed > 90 days**, which permanently removes
-completed tasks older than that. It asks first.
+completed tasks in **the current folder** finished more than 90 days ago. Other
+folders are untouched. It asks first, naming the folder and the count.
+
+There is no undo — the rows are deleted from the database — so export first if
+you want a copy. Images used by those tasks stay in storage; nothing collects
+them.
 
 It also has **Export everything as JSON**, which downloads every folder, category
 and task in the same shape the original `todos.json` used — readable by eye, and
