@@ -521,18 +521,34 @@
     filter: blur(4px);
     user-select: none;
   }
-  .cat-check {
+  .cat-field.cat-field-check { padding-bottom: 16px; }
+  .cat-field .cat-check {
     display: flex;
     align-items: flex-start;
     gap: 10px;
+    margin-bottom: 0;
     cursor: pointer;
-    padding: 2px 0;
+    /* undo the uppercase field-label treatment, which also inherited into the
+       description text below */
+    font-size: 13.5px;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
   }
-  .cat-check input { margin-top: 3px; flex-shrink: 0; }
-  .cat-check strong { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink); }
-  .cat-check em {
+  .cat-field .cat-check input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    margin: 1px 0 0;
+    padding: 0;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .cat-field .cat-check strong { display: block; font-weight: 600; color: var(--ink); }
+  .cat-field .cat-check em {
     display: block;
-    margin-top: 2px;
+    margin-top: 3px;
     font-style: normal;
     font-size: 12px;
     color: var(--mute);
@@ -784,6 +800,7 @@
   }
   .due-chip.urgent svg { width: 11px; height: 11px; flex-shrink: 0; }
   .task.done .due-chip { color: var(--mute-2); font-weight: 400; background: none; padding: 0; }
+  .task-footer-controls { display: flex; align-items: center; gap: 10px; }
   .due-input {
     height: 30px;
     padding: 0 8px;
@@ -1074,7 +1091,7 @@
 
   .task-footer {
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 12px;
     padding: 12px 24px;
@@ -1488,8 +1505,10 @@
     <textarea id="task-desc" class="task-desc" placeholder="Notes, context, links... (supports **bold**, *italic*, and lists. Paste images directly.)"></textarea>
     <div id="task-preview" class="task-preview md" tabindex="-1" hidden></div>
     <footer class="task-footer">
-      <select id="task-category" class="select"></select>
-      <input id="task-due" class="due-input" type="date" aria-label="Due date" title="Due date">
+      <div class="task-footer-controls">
+        <select id="task-category" class="select"></select>
+        <input id="task-due" class="due-input" type="date" aria-label="Due date" title="Due date">
+      </div>
       <span class="task-meta" id="task-meta"></span>
       <button id="task-delete" class="btn btn-danger">Delete</button>
     </footer>
@@ -1547,7 +1566,7 @@
       <label for="category-name-input">Name</label>
       <input id="category-name-input" type="text" maxlength="60" autocomplete="off">
     </div>
-    <div class="cat-field">
+    <div class="cat-field cat-field-check">
       <label class="cat-check" for="category-private-input">
         <input id="category-private-input" type="checkbox">
         <span>
