@@ -53,6 +53,8 @@ create table if not exists todo.tasks (
   description   text not null default '',
   completed     boolean not null default false,
   important     boolean not null default false,
+  -- Blurred on the board; readable as soon as the card is opened.
+  private       boolean not null default false,
   due_date      date,
   position      integer not null default 0,
   created_at    timestamptz not null default now(),
@@ -65,6 +67,7 @@ create table if not exists todo.tasks (
 -- columns added after the first run need their own statement.
 
 alter table todo.categories add column if not exists private boolean not null default false;
+alter table todo.tasks      add column if not exists private boolean not null default false;
 
 create index if not exists folders_user_pos    on todo.folders    (user_id, position);
 create index if not exists categories_fold_pos on todo.categories (folder_id, position);

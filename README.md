@@ -123,7 +123,12 @@ private `todo-images` bucket under your user id, and the markdown records it as
 memory, so opening the same card repeatedly costs one round trip rather than one
 per view.
 
-**Private columns**
+**Private cards and columns**
+
+A single card can be marked private from the eye button in its detail modal,
+next to the star. It renders blurred on the board with a small eye-off marker
+beside it, and opening the card shows the real text straight away — there is no
+reveal toggle, because opening it is already the deliberate act.
 
 A column can be marked private in its settings (the gear in the column header).
 Its card text renders blurred and unselectable, and an eye in the header reveals
@@ -131,9 +136,9 @@ it. Revealing lasts only for that session — a private column always comes back
 blurred when the app is opened, and turning privacy off and on again never
 restores an old reveal.
 
-Search respects it too: a match inside a hidden private column is blurred in the
-results and badged **Private**, so the dialog can't be used to read around the
-blur.
+Search respects both: a match on a private card, or inside a hidden private
+column, is blurred in the results and badged **Private**, so the dialog can't be
+used to read around the blur. Press `Enter` to open it and read it properly.
 
 This is a screen-privacy measure, not a security one. The rows are ordinary text
 in the database and in the JSON export, and opening a card shows it in full. It
@@ -230,7 +235,7 @@ camelCase in the app; the mapping happens in one place on load and one on save.
 folders     id, user_id, name, position, updated_at
 categories  id, user_id, folder_id, name, private, position, updated_at
 tasks       id, user_id, folder_id, category_id, subject, description,
-            completed, important, due_date, position,
+            completed, important, private, due_date, position,
             created_at, completed_at, updated_at
 ```
 

@@ -517,9 +517,21 @@
      still reads as a column. user-select stops the text being dragged out or
      copied while it is hidden. */
   .column.private-hidden .task-body,
-  .column.private-hidden .column-empty {
+  .column.private-hidden .column-empty,
+  .task.private .task-body {
     filter: blur(5px);
     user-select: none;
+  }
+  /* Sits outside .task-body so it stays sharp, and says why the card is
+     blurred when the column itself is not private. */
+  .task-private-mark {
+    flex-shrink: 0;
+    width: 18px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    color: var(--mute-2);
+    align-self: flex-start;
   }
   .column-reveal.on { color: var(--accent); }
   .search-hit.private-hidden .search-hit-subject,
@@ -878,6 +890,16 @@
     color: var(--mute-2);
     transition: color .12s, background .12s;
   }
+  .modal-private {
+    position: absolute;
+    top: 10px;
+    right: 90px;
+    z-index: 2;
+    color: var(--mute-2);
+    transition: color .12s, background .12s;
+  }
+  .modal-private:hover { color: var(--accent); background: var(--accent-ghost); }
+  .modal-private.on { color: var(--accent); }
   .modal-star:hover { color: var(--accent); background: var(--accent-ghost); }
   .modal-star.on { color: var(--accent); }
   .modal-star.on svg polygon { fill: currentColor; }
@@ -997,7 +1019,7 @@
     width: 100%;
     border: 0;
     outline: none;
-    padding: 26px 56px 8px 30px;
+    padding: 26px 126px 8px 30px;
     font-family: var(--font-display);
     font-size: 22px;
     font-weight: 500;
@@ -1487,6 +1509,7 @@
     <button class="iconbtn modal-close" data-close="task" aria-label="Close (Esc)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
+    <button class="iconbtn modal-private" id="task-private-modal" aria-label="Mark private" title="Mark private"></button>
     <button class="iconbtn modal-star" id="task-star-modal" aria-label="Mark important" title="Mark important">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     </button>
@@ -1765,6 +1788,7 @@ async function loadState() {
     description: row.description || "",
     completed: !!row.completed,
     important: !!row.important,
+    private: !!row.private,
     dueDate: row.due_date || null,
     createdAt: row.created_at,
     completedAt: row.completed_at
@@ -1809,6 +1833,7 @@ function rowsFromState() {
       description: t.description || "",
       completed: !!t.completed,
       important: !!t.important,
+      private: !!t.private,
       due_date: t.dueDate || null,
       position: i,
       created_at: t.createdAt,
@@ -2325,7 +2350,7 @@ function placeholderLine(name) {
 function renderTaskCard(task) {
   const card = el("div", {
     class: "task" + (task.completed ? " done" : "") + (task.important ? " important" : "") +
-      (isUrgent(task) ? " urgent" : ""),
+      (isUrgent(task) ? " urgent" : "") + (task.private ? " private" : ""),
     draggable: "true",
     dataset: { taskId: task.id },
     tabindex: "0",
@@ -2377,7 +2402,14 @@ function renderTaskCard(task) {
     onclick: e => { e.stopPropagation(); toggleImportant(task); }
   }, svg("star", 13, 13));
 
-  card.append(grip, checkCol, body, star);
+  const privateMark = task.private ? el("span", {
+    class: "task-private-mark",
+    title: "Private \u2014 open the card to read it",
+    "aria-label": "Private"
+  }, svg("eye-off", 12, 12)) : null;
+
+  // Node.append stringifies null into a text node, unlike el() which skips it.
+  card.append(...[grip, checkCol, body, privateMark, star].filter(Boolean));
 
   card.addEventListener("click", () => openTaskModal(task));
   card.addEventListener("focus", () => { focusedTaskId = task.id; });
@@ -2576,6 +2608,26 @@ function toggleImportant(task) {
   save();
   renderBoard();
   if (openTaskId === task.id) updateModalStar(task);
+}
+
+function updateModalPrivate(task) {
+  const btn = $("#task-private-modal");
+  const on = !!(task && task.private);
+  btn.innerHTML = "";
+  btn.append(svg(on ? "eye-off" : "eye", 16, 16));
+  btn.classList.toggle("on", on);
+  btn.setAttribute("aria-label", on ? "Make readable on the board" : "Mark private");
+  btn.title = on ? "Private \u2014 blurred on the board" : "Mark private";
+}
+
+// No reveal toggle here, unlike a private column: opening the card is itself
+// the deliberate act, so the modal always shows the real text.
+function toggleTaskPrivate(task) {
+  task.private = !task.private;
+  save();
+  renderBoard();
+  if (openTaskId === task.id) updateModalPrivate(task);
+  if (searchOpen()) renderSearch({ keepIndex: true });
 }
 
 function updateModalStar(task) {
@@ -2782,6 +2834,7 @@ function openTaskModal(task) {
   populateCategorySelect(taskCategory, task.categoryId);
   updateTaskMeta(task);
   updateModalStar(task);
+  updateModalPrivate(task);
   taskModal.hidden = false;
   const hasContent = !!(task.description || "").trim();
   setTaskMode(hasContent ? "preview" : "write");
@@ -2793,6 +2846,12 @@ $("#task-star-modal").addEventListener("click", () => {
   const t = state.tasks.find(x => x.id === openTaskId);
   if (!t) return;
   toggleImportant(t);
+});
+
+$("#task-private-modal").addEventListener("click", () => {
+  const t = state.tasks.find(x => x.id === openTaskId);
+  if (!t) return;
+  toggleTaskPrivate(t);
 });
 
 function closeTaskModal() {
@@ -3122,6 +3181,7 @@ function exportBoard() {
         description: t.description || "",
         completed: !!t.completed,
         important: !!t.important,
+        private: !!t.private,
         dueDate: t.dueDate || null,
         createdAt: t.createdAt,
         completedAt: t.completedAt || null
@@ -3286,6 +3346,8 @@ function renderSearch(opts) {
 
   searchHits.forEach((hit, i) => {
     const t = hit.task;
+    // A private card is blurred here too: the only way to read it is to open it.
+    const hidden = hit.hidden || !!t.private;
     const subject = el("div", { class: "search-hit-subject" });
     subject.append(markMatch(t.subject || "Untitled", q));
 
@@ -3296,7 +3358,7 @@ function renderSearch(opts) {
     if (excerpt) excerpt.append(markMatch(snippet, q));
 
     const meta = el("div", { class: "search-hit-meta" },
-      hit.hidden ? el("span", { class: "search-hit-badge" }, "Private") : null,
+      hidden ? el("span", { class: "search-hit-badge" }, "Private") : null,
       t.completed ? el("span", { class: "search-hit-badge" }, "Done") : null,
       (!t.completed && isUrgent(t))
         ? el("span", { class: "search-hit-badge due" }, dueLabel(t)) : null,
@@ -3305,7 +3367,7 @@ function renderSearch(opts) {
 
     searchResults.append(el("div", {
       class: "search-hit" + (i === searchIndex ? " active" : "") + (t.completed ? " done" : "")
-        + (hit.hidden ? " private-hidden" : ""),
+        + (hidden ? " private-hidden" : ""),
       dataset: { idx: String(i) },
       onclick: () => { searchIndex = i; paintSearchSelection(); openSearchHit(); }
     }, subject, excerpt, meta));
