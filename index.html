@@ -481,7 +481,7 @@
     min-height: 0;
     display: flex;
     gap: 14px;
-    padding: 22px 24px 44px;
+    padding: 22px 24px 18px;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-padding: 24px;
@@ -489,7 +489,13 @@
   }
   .board::-webkit-scrollbar { height: 10px; }
   .board::-webkit-scrollbar-track { background: transparent; }
-  .board::-webkit-scrollbar-thumb { background: var(--mute-2); border-radius: 10px; border: 3px solid var(--paper); }
+  .board::-webkit-scrollbar-thumb {
+    background: var(--rule);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .board::-webkit-scrollbar-thumb:hover { background: var(--mute-2); background-clip: padding-box; }
 
   .column {
     flex: 1 1 300px;
@@ -657,10 +663,10 @@
     gap: 6px;
     min-height: 40px;
   }
-  .column-tasks::-webkit-scrollbar { width: 8px; }
-  .column-tasks::-webkit-scrollbar-track { background: transparent; }
-  .column-tasks::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
-  .column-tasks::-webkit-scrollbar-thumb:hover { background: var(--mute-2); background-clip: padding-box; border: 2px solid transparent; }
+  .column-body::-webkit-scrollbar { width: 8px; }
+  .column-body::-webkit-scrollbar-track { background: transparent; }
+  .column-body::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+  .column-body::-webkit-scrollbar-thumb:hover { background: var(--mute-2); background-clip: padding-box; border: 2px solid transparent; }
 
   .column-empty {
     padding: 18px 10px;
@@ -915,9 +921,7 @@
 
   /* ---------- Add-column tile ---------- */
   .shortcut-bar {
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    z-index: 4;
+    flex: 0 0 auto;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
