@@ -38,6 +38,9 @@ create table if not exists todo.categories (
   folder_id   uuid not null references todo.folders(id) on delete cascade,
   name        text not null,
   position    integer not null default 0,
+  -- Blurs card text on the board until revealed. A display concession, not a
+  -- security boundary: the rows are plain text here and in any export.
+  private     boolean not null default false,
   updated_at  timestamptz not null default now()
 );
 
@@ -56,6 +59,12 @@ create table if not exists todo.tasks (
   completed_at  timestamptz,
   updated_at    timestamptz not null default now()
 );
+
+-- ---------- Later additions ----------
+-- "create table if not exists" above is a no-op once the table exists, so
+-- columns added after the first run need their own statement.
+
+alter table todo.categories add column if not exists private boolean not null default false;
 
 create index if not exists folders_user_pos    on todo.folders    (user_id, position);
 create index if not exists categories_fold_pos on todo.categories (folder_id, position);

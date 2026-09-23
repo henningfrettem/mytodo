@@ -507,6 +507,38 @@
   }
   .column.drop-target { background: #e2dcca; border-color: var(--accent-soft); }
 
+  /* Blur only the body: the checkbox, star and age stay usable, and the column
+     still reads as a column. user-select stops the text being dragged out or
+     copied while it is hidden. */
+  .column.private-hidden .task-body,
+  .column.private-hidden .column-empty {
+    filter: blur(5px);
+    user-select: none;
+  }
+  .column-reveal.on { color: var(--accent); }
+  .search-hit.private-hidden .search-hit-subject,
+  .search-hit.private-hidden .search-hit-excerpt {
+    filter: blur(4px);
+    user-select: none;
+  }
+  .cat-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    padding: 2px 0;
+  }
+  .cat-check input { margin-top: 3px; flex-shrink: 0; }
+  .cat-check strong { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .cat-check em {
+    display: block;
+    margin-top: 2px;
+    font-style: normal;
+    font-size: 12px;
+    color: var(--mute);
+    line-height: 1.45;
+  }
+
   .column-header {
     display: flex;
     align-items: center;
@@ -1515,6 +1547,16 @@
       <label for="category-name-input">Name</label>
       <input id="category-name-input" type="text" maxlength="60" autocomplete="off">
     </div>
+    <div class="cat-field">
+      <label class="cat-check" for="category-private-input">
+        <input id="category-private-input" type="checkbox">
+        <span>
+          <strong>Private</strong>
+          <em>Blur the card text on the board. Always starts blurred when the app
+              opens; the eye in the column header reveals it for this session.</em>
+        </span>
+      </label>
+    </div>
     <footer class="task-footer">
       <button id="category-delete" class="btn btn-danger">Delete category</button>
       <span></span>
@@ -1689,7 +1731,8 @@ async function loadState() {
   const folders = f.data.map(row => ({
     id: row.id,
     name: row.name,
-    categories: c.data.filter(x => x.folder_id === row.id).map(x => ({ id: x.id, name: x.name }))
+    categories: c.data.filter(x => x.folder_id === row.id)
+      .map(x => ({ id: x.id, name: x.name, private: !!x.private }))
   }));
   const tasks = t.data.map(row => ({
     id: row.id,
@@ -1723,7 +1766,10 @@ function rowsFromState() {
   }));
   const categories = [];
   state.folders.forEach(f => (f.categories || []).forEach((c, i) => {
-    categories.push({ id: c.id, user_id: userId, folder_id: f.id, name: c.name, position: i });
+    categories.push({
+      id: c.id, user_id: userId, folder_id: f.id,
+      name: c.name, private: !!c.private, position: i
+    });
   }));
   const catFolder = new Map(categories.map(c => [c.id, c.folder_id]));
   const perCat = new Map();
@@ -2054,6 +2100,15 @@ function currentFolder() {
 /* ---------- Board rendering ---------- */
 const boardEl = $("#board");
 
+// Which private columns are currently revealed. Deliberately memory-only: a
+// private column has to come back blurred every time the app is opened, so
+// this must not survive a reload.
+const revealedCategories = new Set();
+
+function categoryHidden(cat) {
+  return !!(cat && cat.private) && !revealedCategories.has(cat.id);
+}
+
 function tasksForCategory(catId, { completed = false } = {}) {
   return state.tasks.filter(t => t.categoryId === catId && !!t.completed === completed);
 }
@@ -2131,7 +2186,7 @@ function renderBoard() {
 
 function renderColumn(folder, cat) {
   const col = el("div", {
-    class: "column",
+    class: "column" + (categoryHidden(cat) ? " private-hidden" : ""),
     dataset: { categoryId: cat.id },
     "data-category-id": cat.id
   });
@@ -2161,6 +2216,12 @@ function renderColumn(folder, cat) {
     else headerName.textContent = cat.name;
   });
 
+  const revealBtn = cat.private ? el("button", {
+    class: "iconbtn column-reveal" + (categoryHidden(cat) ? "" : " on"),
+    onclick: e => { e.stopPropagation(); togglePrivateReveal(cat, col, revealBtn); }
+  }) : null;
+  if (revealBtn) paintRevealBtn(revealBtn, cat);
+
   const header = el("div", { class: "column-header" },
     el("div", { class: "column-grip", draggable: "true", title: "Drag column" },
       svg("grip", 10, 16)
@@ -2168,6 +2229,7 @@ function renderColumn(folder, cat) {
     headerName,
     el("span", { class: "column-count" }, String(openTasks.length)),
     el("div", { class: "column-actions" },
+      revealBtn,
       el("button", {
         class: "iconbtn", "aria-label": "Category settings", title: "Category settings",
         onclick: e => { e.stopPropagation(); openCategoryModal(folder, cat); }
@@ -2328,6 +2390,26 @@ function renderTaskCard(task) {
   return card;
 }
 
+function paintRevealBtn(btn, cat) {
+  const hidden = categoryHidden(cat);
+  btn.innerHTML = "";
+  btn.append(svg(hidden ? "eye-off" : "eye", 14, 14));
+  btn.classList.toggle("on", !hidden);
+  const label = hidden ? "Show contents" : "Hide contents";
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+}
+
+// Toggles the class in place rather than re-rendering, so the column keeps its
+// scroll position and whichever card had focus.
+function togglePrivateReveal(cat, col, btn) {
+  if (revealedCategories.has(cat.id)) revealedCategories.delete(cat.id);
+  else revealedCategories.add(cat.id);
+  col.classList.toggle("private-hidden", categoryHidden(cat));
+  paintRevealBtn(btn, cat);
+  if (searchOpen()) renderSearch({ keepIndex: true });
+}
+
 function renderCompletedSection(cat, doneTasks) {
   const section = el("section", { class: "completed-section" });
   if (doneTasks.length === 0) return el("div");
@@ -2359,6 +2441,7 @@ function addCategory(folder) {
 /* ---------- Category settings modal ---------- */
 const categoryModal = $("#category-modal");
 const categoryNameInput = $("#category-name-input");
+const categoryPrivateInput = $("#category-private-input");
 const categorySaveBtn = $("#category-save");
 const categoryDeleteBtn = $("#category-delete");
 const categoryModalSub = $("#category-modal-sub");
@@ -2367,6 +2450,7 @@ let categoryModalCtx = null;
 function openCategoryModal(folder, cat) {
   categoryModalCtx = { folder, cat };
   categoryNameInput.value = cat.name;
+  categoryPrivateInput.checked = !!cat.private;
   const taskCount = state.tasks.filter(t => t.categoryId === cat.id).length;
   categoryModalSub.textContent = taskCount
     ? `${taskCount} task${taskCount === 1 ? "" : "s"} in this category.`
@@ -2389,11 +2473,18 @@ function saveCategoryFromModal() {
   if (!categoryModalCtx) return;
   const { cat } = categoryModalCtx;
   const newName = categoryNameInput.value.trim().slice(0, 60);
-  if (newName && newName !== cat.name) {
-    cat.name = newName;
-    save();
-    renderBoard();
+  const nowPrivate = categoryPrivateInput.checked;
+  let changed = false;
+
+  if (newName && newName !== cat.name) { cat.name = newName; changed = true; }
+  if (nowPrivate !== !!cat.private) {
+    cat.private = nowPrivate;
+    // Turning privacy on must hide it immediately, and turning it off should
+    // not leave a stale reveal behind for when it is turned back on.
+    revealedCategories.delete(cat.id);
+    changed = true;
   }
+  if (changed) { save(); renderBoard(); }
   closeCategoryModal();
 }
 categorySaveBtn.addEventListener("click", saveCategoryFromModal);
@@ -2996,7 +3087,7 @@ function exportBoard() {
     folders: state.folders.map(f => ({
       id: f.id,
       name: f.name,
-      categories: (f.categories || []).map(c => ({ id: c.id, name: c.name }))
+      categories: (f.categories || []).map(c => ({ id: c.id, name: c.name, private: !!c.private }))
     })),
     tasks: state.tasks
       .filter(t => catFolder.has(t.categoryId))
@@ -3099,7 +3190,10 @@ function findTasks(query) {
   if (!q) return [];
   const meta = new Map();
   state.folders.forEach(f => (f.categories || []).forEach(c =>
-    meta.set(c.id, { folder: f.name, folderId: f.id, category: c.name })));
+    meta.set(c.id, {
+      folder: f.name, folderId: f.id, category: c.name,
+      catId: c.id, hidden: categoryHidden(c)
+    })));
 
   const hits = [];
   for (const t of state.tasks) {
@@ -3179,6 +3273,7 @@ function renderSearch(opts) {
     if (excerpt) excerpt.append(markMatch(snippet, q));
 
     const meta = el("div", { class: "search-hit-meta" },
+      hit.hidden ? el("span", { class: "search-hit-badge" }, "Private") : null,
       t.completed ? el("span", { class: "search-hit-badge" }, "Done") : null,
       (!t.completed && isUrgent(t))
         ? el("span", { class: "search-hit-badge due" }, dueLabel(t)) : null,
@@ -3186,7 +3281,8 @@ function renderSearch(opts) {
     );
 
     searchResults.append(el("div", {
-      class: "search-hit" + (i === searchIndex ? " active" : "") + (t.completed ? " done" : ""),
+      class: "search-hit" + (i === searchIndex ? " active" : "") + (t.completed ? " done" : "")
+        + (hit.hidden ? " private-hidden" : ""),
       dataset: { idx: String(i) },
       onclick: () => { searchIndex = i; paintSearchSelection(); openSearchHit(); }
     }, subject, excerpt, meta));
@@ -3570,7 +3666,9 @@ function svg(name, w = 16, h = 16) {
     lines: `<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="17" x2="18" y2="17"/>`,
     image: `<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5-5-6 6-3-3-4 4"/>`,
     star: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
-    alert: `<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`
+    alert: `<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+    eye: `<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>`,
+    "eye-off": `<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M6.61 6.61A18.15 18.15 0 0 0 2 11s3.5 7 10 7a9.12 9.12 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>`
   };
   s.innerHTML = paths[name] || "";
   return s;
