@@ -1,6 +1,6 @@
 # Todo
 
-A single-file todo board backed by Supabase. Still one `index.html` you open
+A single-file todo board with a notes pane, backed by Supabase. Still one `index.html` you open
 straight off disk — no server, no build step, no npm — but the data now lives in
 Postgres rather than a file next to it.
 
@@ -56,8 +56,9 @@ Supabase anyway.
 ## Setting up a fresh project
 
 1. Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL Editor.
-   It creates a `todo` schema, three tables, row-level security, and a private
-   `todo-images` bucket. It is safe to re-run.
+   It creates a `todo` schema, six tables, row-level security, and a private
+   `todo-images` bucket. It is safe to re-run, and re-running it is also how an
+   existing project picks up tables added later, such as the notes tables.
 2. Add `todo` under **Settings → API → Exposed schemas**. PostgREST only serves
    schemas listed there, and without it every request comes back `404`.
 3. Create your user under **Authentication → Users**, and turn **off**
@@ -77,6 +78,11 @@ Each **folder** is an independent board — switch between them from the dropdow
 in the top left, and add a column with the **+** beside it. Within a folder,
 **categories** are the columns, and tasks live inside them. Completed tasks
 collapse into a section at the bottom of their column.
+
+To the left of the board is the **notes** pane, which belongs to the folder too:
+switching folders switches the notes. Drag its right edge to make it wider or
+narrower (double-click the edge to reset), or fold it away with `«`. Both are
+remembered on this machine.
 
 A bar along the bottom lists every keyboard shortcut.
 
@@ -145,16 +151,64 @@ in the database and in the JSON export, and opening a card shows it in full. It
 stops someone reading your board over your shoulder; it does not protect anything
 from someone with access to the data.
 
+**Notes**
+
+The pane on the left is a OneNote-style notebook for the current folder. Notes
+sit in categories you create with **+ New category**; each note takes a single
+line in the list, showing its heading, how many entries it has when there's more
+than one, and when the latest entry was written. Click a category to fold it.
+
+**New note** at the top of the pane (or `Shift+N`) opens a new note in a large
+window, in whichever category you used last. The `+` on a category's header
+picks one instead. Every note needs a heading: closing a note that has text but
+no heading is refused until you give it one, and a new note closed with nothing
+written in it is simply discarded.
+
+Inside, a note is a thread of **entries**, each stamped with the date and time
+it was written, newest on top. That suits things like weekly 1:1s, where every
+meeting adds an entry to the same note; most notes will only ever have one.
+**New entry** (or `Ctrl+Enter`) adds one at the top.
+
+Entries are rich text and always editable: click anywhere in one and type, with
+no edit mode to switch into. The toolbar does bold, italic, bulleted and
+numbered lists, links and images; `Ctrl+B`, `Ctrl+I` and `Ctrl+K` (link) work
+too, typing `- ` or `1. ` at the start of a line starts a list, and `Tab`
+indents a list item. Bare URLs become links when you leave the entry, and a
+link opens with a single click. Paste an image, or drop one on an entry, and it
+appears at once and uploads to the same private bucket as card images.
+
+Pasting from a web page or Word keeps the basic formatting (bold, italic,
+lists, links, headings as bold lines) and drops everything else. What an entry
+may contain is a short whitelist, rebuilt from scratch on every paste and every
+load, so styles, scripts and event handlers from a pasted page can't come along.
+
+Reordering is by drag and drop throughout: entries by the handle to their left
+(their timestamps stay as they were), notes within and between categories (drop
+on a category's header to put a note at its top), and categories by their
+header. The category dropdown in the note window moves a note too.
+
+**Archive** in the note window takes a note out of the list without deleting
+it. Archived notes collect in an **Archived** section at the bottom of the pane,
+still openable and still searchable; **Unarchive** puts one back where it was.
+Deleting a note or an entry offers undo.
+
+Notes can be private in the same two ways as cards: a single note, from the eye
+in its window, or a whole category, from its settings (the gear on its header).
+Private titles are blurred in the pane, a category's eye reveals it for the
+session, and opening a note always shows it in full.
+
 **Search**
 
-`Ctrl+F` opens a search dialog in the middle of the screen. It covers subjects
-and notes in the **current folder** and includes **completed** tasks — those live
-in collapsed sections, so a board filter could never have surfaced them. Tick
+`Ctrl+F` opens a search dialog in the middle of the screen. It covers cards
+(subjects and descriptions) and notes (headings and entries) in the **current
+folder**, including **completed** tasks and **archived** notes, which a board
+filter could never have surfaced. Matching notes are listed in their own group
+under the cards. Tick
 **All folders** in the footer to widen it; that resets to the current folder each
 time the dialog opens.
 
-Arrow keys move through the results, `Enter` opens the highlighted card on top
-of the dialog with the search still underneath, and `Esc` closes the card first
+Arrow keys move through the results, `Enter` opens the highlighted card or note
+on top of the dialog with the search still underneath, and `Esc` closes it first
 and the search second. Each result shows its column — and its folder too when
 searching all folders — a snippet of the
 notes when the match was there rather than in the subject, and a badge if the
@@ -172,8 +226,9 @@ them.
 
 It also has **Export everything as JSON**, which downloads every folder, category
 and task in the same shape the original `todos.json` used — readable by eye, and
-importable through `migrate.html` if you ever need to rebuild a project. Images
-are not included: they live in Storage, and the export only carries the `sb:`
+importable through `migrate.html` if you ever need to rebuild a project. It
+also carries every note category, note and entry, archived ones included.
+Images are not included: they live in Storage, and the export only carries a
 reference to them.
 
 Worth doing occasionally. The free Supabase tier takes no automatic backups, so
@@ -184,8 +239,9 @@ this export is the only copy of your data that isn't in the database.
 | Key | Action |
 | --- | --- |
 | `N` | New task (when not typing in a field) |
+| `Shift+N` | New note |
 | `↑` `↓` | Move focus within a column |
-| `←` `→` | Move focus to the top of the adjacent column |
+| `←` `→` | Move focus to the top of the adjacent column; `←` from the first column moves into the notes pane |
 | `Ctrl` + arrows | Move the focused card itself |
 | `Enter` | Open the focused card |
 | `Space` | Mark the focused card done |
@@ -193,7 +249,9 @@ this export is the only copy of your data that isn't in the database.
 | `Ctrl+F` | Search |
 | `Space` | In a task's Preview pane, switch to Write |
 | `Ctrl+B` / `Ctrl+I` | Bold / italic, inside a task description |
-| `Ctrl+Enter` | Submit from the quick-add description field |
+| `Ctrl+Enter` | Submit from the quick-add description field; in a note, add an entry |
+| `Ctrl+K` | In a note, link the selected text |
+| `Tab` / `Shift+Tab` | In a note's list, indent / outdent |
 
 On a Mac use `⌘` — every shortcut accepts either modifier. Note that macOS
 intercepts `Ctrl`+arrows for Mission Control, so use `⌘`+arrows to move cards
@@ -236,7 +294,7 @@ app. Keeping them as a cold backup costs nothing.
 
 ## Data model
 
-Three tables in the `todo` schema. Columns are snake_case in Postgres and
+Six tables in the `todo` schema. Columns are snake_case in Postgres and
 camelCase in the app; the mapping happens in one place on load and one on save.
 
 ```
@@ -245,7 +303,24 @@ categories  id, user_id, folder_id, name, private, position, updated_at
 tasks       id, user_id, folder_id, category_id, subject, description,
             completed, important, private, due_date, position,
             created_at, completed_at, updated_at
+
+note_categories  id, user_id, folder_id, name, private, position, updated_at
+notes            id, user_id, category_id, title, private, archived,
+                 archived_at, position, created_at, updated_at
+note_entries     id, user_id, note_id, body, position, created_at, updated_at
 ```
+
+An entry's `body` is the sanitised HTML described under Notes. Images in it are
+`<img data-sb="<uuid>.png">`, a reference into the bucket and never a URL, since
+signed URLs expire. An entry's `created_at` is the timestamp it shows, and
+reordering entries changes only `position`.
+
+A note's heading is required by the app but deliberately not by the database: a
+note is saved while it's being written, before it has a heading, and a
+constraint would turn that into lost text.
+
+Every table is read in pages of 1000 rows, the most PostgREST returns in one
+response.
 
 `position` is the manual order within a parent, renumbered from zero on every
 write. Due-date pinning is applied at render time and never stored, so clearing

@@ -62,6 +62,54 @@ create table if not exists todo.tasks (
   updated_at    timestamptz not null default now()
 );
 
+-- ---------- Notes ----------
+-- The pane to the left of the board. Each folder has its own note categories;
+-- a note is a heading plus a thread of timestamped entries, newest first.
+
+create table if not exists todo.note_categories (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  folder_id   uuid not null references todo.folders(id) on delete cascade,
+  name        text not null,
+  position    integer not null default 0,
+  -- Blurs the note titles in the pane until revealed, like a private column.
+  private     boolean not null default false,
+  updated_at  timestamptz not null default now()
+);
+
+create table if not exists todo.notes (
+  id           uuid primary key,
+  user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  category_id  uuid not null references todo.note_categories(id) on delete cascade,
+  -- Required by the app, deliberately not by the database: a note that is
+  -- still being written is saved before it has a heading, and a constraint
+  -- here would turn that into lost text.
+  title        text not null default '',
+  private      boolean not null default false,
+  archived     boolean not null default false,
+  archived_at  timestamptz,
+  position     integer not null default 0,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create table if not exists todo.note_entries (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  note_id     uuid not null references todo.notes(id) on delete cascade,
+  -- Sanitised HTML. Images are <img data-sb="<file>"> pointing into the
+  -- todo-images bucket, never a URL: signed URLs expire.
+  body        text not null default '',
+  position    integer not null default 0,
+  -- The timestamp shown on the entry. Reordering never changes it.
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- Default privileges cover tables created after the grants at the top, but
+-- only for the role that set them; being explicit costs nothing.
+grant all on todo.note_categories, todo.notes, todo.note_entries to anon, authenticated, service_role;
+
 -- ---------- Later additions ----------
 -- "create table if not exists" above is a no-op once the table exists, so
 -- columns added after the first run need their own statement.
@@ -73,6 +121,9 @@ create index if not exists folders_user_pos    on todo.folders    (user_id, posi
 create index if not exists categories_fold_pos on todo.categories (folder_id, position);
 create index if not exists tasks_cat_pos       on todo.tasks      (category_id, position);
 create index if not exists tasks_user          on todo.tasks      (user_id);
+create index if not exists note_cats_fold_pos  on todo.note_categories (folder_id, position);
+create index if not exists notes_cat_pos       on todo.notes           (category_id, position);
+create index if not exists note_entries_pos    on todo.note_entries    (note_id, position);
 
 -- ---------- updated_at ----------
 -- Set server-side so a row's mtime can't be faked by a client with a skewed
@@ -87,10 +138,16 @@ end $$;
 drop trigger if exists folders_touch    on todo.folders;
 drop trigger if exists categories_touch on todo.categories;
 drop trigger if exists tasks_touch      on todo.tasks;
+drop trigger if exists note_categories_touch on todo.note_categories;
+drop trigger if exists notes_touch           on todo.notes;
+drop trigger if exists note_entries_touch    on todo.note_entries;
 
 create trigger folders_touch    before update on todo.folders    for each row execute function todo.touch_updated_at();
 create trigger categories_touch before update on todo.categories for each row execute function todo.touch_updated_at();
 create trigger tasks_touch      before update on todo.tasks      for each row execute function todo.touch_updated_at();
+create trigger note_categories_touch before update on todo.note_categories for each row execute function todo.touch_updated_at();
+create trigger notes_touch           before update on todo.notes           for each row execute function todo.touch_updated_at();
+create trigger note_entries_touch    before update on todo.note_entries    for each row execute function todo.touch_updated_at();
 
 -- ---------- Row Level Security ----------
 -- The publishable key is public by design and lives in a public repo, so RLS is
@@ -100,14 +157,23 @@ create trigger tasks_touch      before update on todo.tasks      for each row ex
 alter table todo.folders    enable row level security;
 alter table todo.categories enable row level security;
 alter table todo.tasks      enable row level security;
+alter table todo.note_categories enable row level security;
+alter table todo.notes           enable row level security;
+alter table todo.note_entries    enable row level security;
 
 drop policy if exists folders_owner    on todo.folders;
 drop policy if exists categories_owner on todo.categories;
 drop policy if exists tasks_owner      on todo.tasks;
+drop policy if exists note_categories_owner on todo.note_categories;
+drop policy if exists notes_owner           on todo.notes;
+drop policy if exists note_entries_owner    on todo.note_entries;
 
 create policy folders_owner    on todo.folders    for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy categories_owner on todo.categories for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy tasks_owner      on todo.tasks      for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy note_categories_owner on todo.note_categories for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy notes_owner           on todo.notes           for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy note_entries_owner    on todo.note_entries    for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- ---------- Realtime ----------
 -- Not needed while one machine is the source of truth; harmless to enable now
@@ -120,7 +186,7 @@ begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     create publication supabase_realtime;
   end if;
-  foreach t in array array['folders', 'categories', 'tasks'] loop
+  foreach t in array array['folders', 'categories', 'tasks', 'note_categories', 'notes', 'note_entries'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'todo' and tablename = t

@@ -1404,6 +1404,336 @@
     50% { box-shadow: 0 0 0 6px rgba(168, 123, 42, .05); }
   }
 
+
+  /* ---------- Notes pane ---------- */
+  .workspace { flex: 1; min-height: 0; display: flex; }
+  .workspace > .board { min-width: 0; }
+
+  .notes-pane {
+    flex: 0 0 auto;
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: rgba(243, 237, 224, .55);
+    border-right: 1px solid var(--rule-soft);
+  }
+  .notes-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 8px 10px 18px;
+  }
+  .notes-title {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .notes-collapse svg { transition: transform .2s var(--r); }
+  .notes-new { margin: 0 12px 10px; justify-content: center; height: 32px; gap: 8px; }
+  .notes-new kbd { font-size: 10px; padding: 0 4px; }
+  .notes-new:disabled { opacity: .45; cursor: default; }
+  .notes-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; }
+  .notes-list::-webkit-scrollbar { width: 8px; }
+  .notes-list::-webkit-scrollbar-track { background: transparent; }
+  .notes-list::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+  .notes-empty { padding: 8px 10px; font-size: 12px; line-height: 1.5; color: var(--mute); }
+
+  .nc { margin-top: 4px; border-radius: 5px; }
+  .nc.dragging { opacity: .4; }
+  .nc.drop-before { box-shadow: 0 -2px 0 var(--accent); }
+  .nc.drop-after { box-shadow: 0 2px 0 var(--accent); }
+  .nc-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 2px 0 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--mute);
+    outline: none;
+  }
+  .nc-head:hover { background: var(--paper-2); }
+  .nc-head:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+  .nc-head.drop-into { background: var(--accent-ghost); box-shadow: inset 0 0 0 1px var(--accent-soft); }
+  .nc-chev { flex-shrink: 0; transform: rotate(90deg); transition: transform .15s var(--r); }
+  .nc.closed .nc-chev { transform: none; }
+  .nc-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nc-count { font-size: 10.5px; color: var(--mute-2); font-variant-numeric: tabular-nums; }
+  .nc-reveal, .nc-act { width: 22px; height: 22px; flex-shrink: 0; }
+  .nc-reveal { color: var(--mute-2); }
+  .nc-reveal.on { color: var(--accent); }
+  .nc-actions { display: flex; opacity: 0; transition: opacity .12s; }
+  .nc-head:hover .nc-actions, .nc-head:focus-within .nc-actions { opacity: 1; }
+  .nc.closed .nc-notes { display: none; }
+  .nc-archive { margin-top: 14px; padding-top: 6px; border-top: 1px solid var(--rule-soft); border-radius: 0; }
+  .nc-archive .nc-name { color: var(--mute); }
+  .nc-archive-icon { flex-shrink: 0; color: var(--mute-2); }
+
+  .note-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 28px;
+    padding: 0 8px 0 24px;
+    border-radius: 5px;
+    font-size: 13px;
+    color: var(--ink);
+    text-align: left;
+    outline: none;
+  }
+  .note-row:hover { background: var(--paper-2); }
+  .note-row:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+  .note-row.active { background: var(--card); box-shadow: inset 2px 0 0 var(--accent), var(--shadow-sm); }
+  .note-row.dragging { opacity: .35; }
+  .note-row.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+  .note-row.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+  .note-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note-row.untitled .note-row-title { font-style: italic; color: var(--mute); }
+  .nc.private-hidden .note-row-title,
+  .note-row.hidden-text .note-row-title { filter: blur(4px); user-select: none; }
+  .note-row-private { flex-shrink: 0; display: grid; place-items: center; color: var(--mute-2); }
+  .note-row-count {
+    flex-shrink: 0;
+    font-size: 10.5px;
+    color: var(--mute);
+    background: var(--paper);
+    border: 1px solid var(--rule-soft);
+    border-radius: 10px;
+    padding: 0 6px;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .note-row-date {
+    flex-shrink: 0;
+    min-width: 34px;
+    text-align: right;
+    font-size: 11px;
+    color: var(--mute-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .note-row-cat {
+    flex-shrink: 1;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--mute-2);
+  }
+
+  .notes-add-cat {
+    margin: 2px 16px 12px;
+    padding: 6px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--mute);
+    text-align: left;
+    align-self: flex-start;
+  }
+  .notes-add-cat:hover { background: var(--paper-2); color: var(--ink-2); }
+  .nc-new-input {
+    width: calc(100% - 32px);
+    margin: 2px 16px 12px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--accent-soft);
+    border-radius: var(--radius);
+    background: var(--card);
+    font-size: 13px;
+    outline: none;
+  }
+
+  .notes-resizer {
+    flex: 0 0 auto;
+    width: 9px;
+    margin: 0 -5px 0 -4px;
+    position: relative;
+    z-index: 3;
+    cursor: col-resize;
+  }
+  .notes-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0; left: 3px;
+    width: 3px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background .15s;
+  }
+  .notes-resizer:hover::after, .notes-resizer.active::after { background: var(--accent-soft); }
+  body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
+
+  .notes-pane.collapsed { width: 44px !important; }
+  .notes-pane.collapsed .notes-title,
+  .notes-pane.collapsed .notes-new,
+  .notes-pane.collapsed .notes-list,
+  .notes-pane.collapsed .notes-add-cat,
+  .notes-pane.collapsed .nc-new-input { display: none; }
+  .notes-pane.collapsed .notes-head { padding: 12px 6px; justify-content: center; }
+  .notes-pane.collapsed .notes-collapse svg { transform: rotate(180deg); }
+  .notes-pane.collapsed + .notes-resizer { display: none; }
+
+  /* ---------- Note window ---------- */
+  .modal-panel.note-panel {
+    width: 940px;
+    height: calc(100vh - 72px);
+    max-height: 920px;
+  }
+  .note-panel:focus { outline: none; }
+  .modal-private.note-private-btn { right: 50px; }
+  .note-heading { padding-right: 96px; }
+  .note-heading.invalid { box-shadow: inset 0 -2px 0 var(--err); }
+  .note-heading-hint { padding: 0 30px 8px; font-size: 12px; color: var(--err); }
+  .note-archived-banner {
+    margin: 18px 96px 0 30px;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    background: var(--paper-2);
+    font-size: 12px;
+    color: var(--mute);
+  }
+  .note-archived-banner + .note-heading { padding-top: 12px; }
+  .note-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 4px 26px 12px 30px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .note-bar .btn { height: 30px; gap: 8px; padding: 0 12px; }
+  .note-bar .btn kbd { font-size: 10px; padding: 0 4px; }
+  .note-format { display: flex; gap: 2px; margin-left: auto; }
+  .note-link-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 26px 8px 30px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--paper);
+    color: var(--mute);
+  }
+  .note-link-bar input {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--accent-soft);
+    border-radius: var(--radius);
+    background: var(--card);
+    font-size: 13px;
+    outline: none;
+  }
+  .note-link-hint { font-size: 11px; white-space: nowrap; }
+  .note-link-hint kbd { font-size: 10px; padding: 0 4px; }
+  .note-entries { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0 28px; }
+  .note-entries::-webkit-scrollbar { width: 10px; }
+  .note-entries::-webkit-scrollbar-track { background: transparent; }
+  .note-entries::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }
+  .note-footer-actions { display: flex; gap: 6px; }
+  .entry-none {
+    display: block;
+    margin: 18px 30px;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--mute);
+  }
+  .entry-none:hover { color: var(--ink-2); }
+
+  .entry {
+    position: relative;
+    padding: 14px 30px 14px 42px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .entry:last-child { border-bottom: 0; }
+  .entry.dragging { opacity: .35; }
+  .entry.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+  .entry.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+  .entry.fresh { animation: card-in .25s var(--r) both; }
+  .entry-grip {
+    position: absolute;
+    left: 14px;
+    top: 15px;
+    width: 18px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    color: var(--mute-2);
+    opacity: 0;
+    cursor: grab;
+    border-radius: 4px;
+    transition: opacity .12s;
+  }
+  .entry:hover .entry-grip { opacity: 1; }
+  .entry-grip:hover { background: var(--paper-2); color: var(--mute); }
+  .entry-grip:active { cursor: grabbing; }
+  .entry-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 24px;
+    margin-bottom: 2px;
+    font-size: 11.5px;
+    color: var(--mute);
+  }
+  .entry-time { font-weight: 600; color: var(--ink-2); letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+  .entry-ago { color: var(--mute-2); }
+  .entry-del { margin-left: auto; width: 26px; height: 26px; opacity: 0; }
+  .entry:hover .entry-del, .entry-del:focus-visible { opacity: 1; }
+  .entry-del:hover { color: var(--err); background: rgba(139, 46, 31, .08); }
+  .entry-body {
+    margin: 0 -12px;
+    padding: 7px 12px;
+    min-height: 38px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    outline: none;
+    cursor: text;
+    overflow-wrap: anywhere;
+    transition: background .12s, border-color .12s, box-shadow .12s;
+  }
+  .entry-body:hover { background: var(--paper); }
+  .entry-body:focus { background: var(--card); border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-ghost); }
+  .entry-body:empty::before { content: "Write something\2026"; color: var(--mute-2); font-style: italic; }
+  .entry-body a { cursor: pointer; }
+  .entry-body p, .entry-body ul, .entry-body ol, .entry-body blockquote, .entry-body pre { margin: 0 0 .5em; }
+  .entry-body > :last-child { margin-bottom: 0; }
+  .entry-body u { text-underline-offset: 2px; }
+  .entry-body blockquote { padding-left: 12px; border-left: 2px solid var(--rule); color: var(--mute); }
+  .entry-body pre, .entry-body code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+  .entry-body pre { padding: 8px 10px; background: var(--paper-2); border-radius: var(--radius); white-space: pre-wrap; }
+  .entry-body img { max-width: 100%; min-height: 24px; cursor: default; }
+  .entry-body img[data-pending] { opacity: .55; }
+
+  .search-group {
+    padding: 10px 12px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -1483,10 +1813,29 @@
     <button id="error-banner-action">Reload</button>
   </div>
 
-  <main id="board" class="board"></main>
+  <div class="workspace">
+    <aside class="notes-pane" id="notes-pane" aria-label="Notes">
+      <div class="notes-head">
+        <span class="notes-title">Notes</span>
+        <button class="iconbtn notes-collapse" id="notes-collapse" title="Hide notes" aria-label="Hide notes">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+      </div>
+      <button class="btn btn-ghost notes-new" id="notes-new">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        New note <kbd>Shift</kbd><kbd>N</kbd>
+      </button>
+      <nav class="notes-list" id="notes-list" aria-label="Notes"></nav>
+      <button class="notes-add-cat" id="notes-add-cat">+ New category</button>
+    </aside>
+    <div class="notes-resizer" id="notes-resizer" role="separator" aria-orientation="vertical"
+         title="Drag to resize, double-click to reset"></div>
+    <main id="board" class="board"></main>
+  </div>
 
   <footer class="shortcut-bar" aria-label="Keyboard shortcuts">
     <span><kbd>N</kbd> new task</span>
+    <span><kbd>Shift</kbd><kbd>N</kbd> new note</span>
     <span class="shortcut-sep">|</span>
     <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> within column</span>
     <span><kbd>&#8592;</kbd><kbd>&#8594;</kbd> between columns</span>
@@ -1508,7 +1857,7 @@
   <div class="modal-panel search-panel" role="dialog" aria-modal="true" aria-label="Search tasks">
     <div class="search-head">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="search-input" class="search-input" placeholder="Search tasks&hellip;" autocomplete="off" spellcheck="false">
+      <input id="search-input" class="search-input" placeholder="Search cards and notes&hellip;" autocomplete="off" spellcheck="false">
       <span class="search-count" id="search-count"></span>
     </div>
     <div id="search-results" class="search-results"></div>
@@ -1622,7 +1971,7 @@
         <input id="category-private-input" type="checkbox">
         <span>
           <strong>Private</strong>
-          <em>Blur the card text on the board. Always starts blurred when the app
+          <em id="category-private-help">Blur the card text on the board. Always starts blurred when the app
               opens; the eye in the column header reveals it for this session.</em>
         </span>
       </label>
@@ -1631,6 +1980,49 @@
       <button id="category-delete" class="btn btn-danger">Delete category</button>
       <span></span>
       <button id="category-save" class="btn btn-primary">Save</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Note window. Before the confirm dialog, which has to stack above it. -->
+<div id="note-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close="note"></div>
+  <div class="modal-panel note-panel" id="note-panel" role="dialog" aria-modal="true" aria-labelledby="note-heading" tabindex="-1">
+    <button class="iconbtn modal-close" data-close="note" aria-label="Close (Esc)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <button class="iconbtn modal-private note-private-btn" id="note-private" aria-label="Mark private" title="Mark private"></button>
+    <div class="note-archived-banner" id="note-archived-banner" hidden></div>
+    <textarea id="note-heading" class="task-subject-input note-heading" placeholder="Heading" rows="1" maxlength="200" spellcheck="false"></textarea>
+    <div class="note-heading-hint" id="note-heading-hint" hidden>Every note needs a heading.</div>
+    <div class="note-bar">
+      <button class="btn btn-ghost" id="note-new-entry">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        New entry <kbd>Ctrl</kbd><kbd>Enter</kbd>
+      </button>
+      <div class="note-format" role="toolbar" aria-label="Formatting">
+        <button class="md-btn" data-fmt="bold" title="Bold (Ctrl+B)" aria-label="Bold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+        <button class="md-btn" data-fmt="italic" title="Italic (Ctrl+I)" aria-label="Italic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="11" y2="5"/><line x1="13" y1="19" x2="5" y2="19"/><line x1="15" y1="5" x2="9" y2="19"/></svg></button>
+        <div class="md-sep"></div>
+        <button class="md-btn" data-fmt="ul" title="Bulleted list (or type - and a space)" aria-label="Bulleted list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg></button>
+        <button class="md-btn" data-fmt="ol" title="Numbered list (or type 1. and a space)" aria-label="Numbered list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><path d="M4 6h1v4" stroke-width="1.8"/><path d="M3 12h3l-3 3.5h3" stroke-width="1.8"/><path d="M3 18h2.5a1 1 0 0 1 0 2H3v-2" stroke-width="1.8" fill="none"/></svg></button>
+        <div class="md-sep"></div>
+        <button class="md-btn" data-fmt="link" title="Link (Ctrl+K)" aria-label="Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+        <button class="md-btn" data-fmt="image" title="Insert image (or paste one)" aria-label="Insert image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
+      </div>
+    </div>
+    <div class="note-link-bar" id="note-link-bar" hidden>
+      <input id="note-link-input" type="text" placeholder="Paste or type a link" autocomplete="off" spellcheck="false" aria-label="Link address">
+      <span class="note-link-hint"><kbd>Enter</kbd> apply &middot; empty removes it &middot; <kbd>Esc</kbd> cancel</span>
+    </div>
+    <div class="note-entries" id="note-entries"></div>
+    <footer class="task-footer">
+      <div class="task-footer-controls"><select id="note-category" class="select" aria-label="Category"></select></div>
+      <span class="task-meta" id="note-meta"></span>
+      <div class="note-footer-actions">
+        <button class="btn btn-ghost" id="note-archive">Archive</button>
+        <button class="btn btn-danger" id="note-delete">Delete</button>
+      </div>
     </footer>
   </div>
 </div>
@@ -1790,18 +2182,46 @@ async function resolveImage(ref) {
 }
 
 /* ---------- Reading ---------- */
+// PostgREST returns at most 1000 rows per request, which note entries in
+// particular will outgrow, so every table is read a page at a time. The id
+// tie-break keeps rows from shifting between pages.
+async function selectAll(table, ...orderBy) {
+  const PAGE = 1000;
+  const rows = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = sb.from(table).select("*");
+    for (const col of [...orderBy, "id"]) q = q.order(col);
+    const { data, error } = await q.range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    rows.push(...data);
+    if (data.length < PAGE) return { data: rows, error: null };
+  }
+}
+
 async function loadState() {
-  const [f, c, t] = await Promise.all([
-    sb.from("folders").select("*").order("position"),
-    sb.from("categories").select("*").order("position"),
-    sb.from("tasks").select("*").order("category_id").order("position")
+  const [f, c, t, nc, nn, ne] = await Promise.all([
+    selectAll("folders", "position"),
+    selectAll("categories", "position"),
+    selectAll("tasks", "category_id", "position"),
+    selectAll("note_categories", "position"),
+    selectAll("notes", "category_id", "position"),
+    selectAll("note_entries", "note_id", "position")
   ]);
   for (const r of [f, c, t]) if (r.error) throw new Error(r.error.message);
+
+  // Notes came after the board. Until their tables exist the board loads as
+  // before and the notes pane says what to run.
+  const noteErr = [nc, nn, ne].find(r => r.error);
+  notesAvailable = !noteErr;
+  if (noteErr) console.warn("Notes unavailable:", noteErr.error.message);
+  const noteCatRows = notesAvailable ? nc.data : [];
 
   const folders = f.data.map(row => ({
     id: row.id,
     name: row.name,
     categories: c.data.filter(x => x.folder_id === row.id)
+      .map(x => ({ id: x.id, name: x.name, private: !!x.private })),
+    noteCategories: noteCatRows.filter(x => x.folder_id === row.id)
       .map(x => ({ id: x.id, name: x.name, private: !!x.private }))
   }));
   const tasks = t.data.map(row => ({
@@ -1818,12 +2238,29 @@ async function loadState() {
     completedAt: row.completed_at
   }));
 
+  // Rows arrive ordered by note and position, so each list is already in order.
+  const entriesByNote = new Map();
+  for (const row of notesAvailable ? ne.data : []) {
+    if (!entriesByNote.has(row.note_id)) entriesByNote.set(row.note_id, []);
+    entriesByNote.get(row.note_id).push({ id: row.id, body: row.body || "", createdAt: row.created_at });
+  }
+  const notes = (notesAvailable ? nn.data : []).map(row => ({
+    id: row.id,
+    categoryId: row.category_id,
+    title: row.title || "",
+    private: !!row.private,
+    archived: !!row.archived,
+    archivedAt: row.archived_at || null,
+    createdAt: row.created_at,
+    entries: entriesByNote.get(row.id) || []
+  }));
+
   const remembered = localStorage.getItem("todo.activeFolderId");
   const activeFolderId = folders.some(x => x.id === remembered)
     ? remembered
     : (folders[0] && folders[0].id) || null;
 
-  return { folders, tasks, activeFolderId };
+  return { folders, tasks, notes, activeFolderId };
 }
 
 /* ---------- Writing ---------- */
@@ -1864,14 +2301,49 @@ function rowsFromState() {
       completed_at: t.completedAt || null
     });
   }
-  return { folders, categories, tasks };
+
+  const noteCategories = [];
+  state.folders.forEach(f => (f.noteCategories || []).forEach((c, i) => {
+    noteCategories.push({
+      id: c.id, user_id: userId, folder_id: f.id,
+      name: c.name, private: !!c.private, position: i
+    });
+  }));
+  const noteCatIds = new Set(noteCategories.map(c => c.id));
+  const perNoteCat = new Map();
+  const notes = [];
+  const noteEntries = [];
+  for (const nt of state.notes || []) {
+    if (!noteCatIds.has(nt.categoryId)) continue; // orphaned by a deleted category
+    const i = perNoteCat.get(nt.categoryId) || 0;
+    perNoteCat.set(nt.categoryId, i + 1);
+    notes.push({
+      id: nt.id, user_id: userId,
+      category_id: nt.categoryId,
+      title: nt.title || "",
+      private: !!nt.private,
+      archived: !!nt.archived,
+      archived_at: nt.archivedAt || null,
+      position: i,
+      created_at: nt.createdAt
+    });
+    nt.entries.forEach((e, j) => noteEntries.push({
+      id: e.id, user_id: userId, note_id: nt.id,
+      body: e.body || "",
+      position: j,
+      created_at: e.createdAt
+    }));
+  }
+  return { folders, categories, tasks, note_categories: noteCategories, notes, note_entries: noteEntries };
 }
 
 // save() is called from ~20 places that don't report what changed, so rather
 // than track dirty ids at every call site the flush diffs a whole snapshot.
 // It also self-heals: a failed write leaves the snapshot stale, so the next
 // flush simply retries the same rows.
-let syncedSnapshot = { folders: [], categories: [], tasks: [] };
+// Parents before children. Upserts run in this order, deletes in reverse.
+const SYNC_TABLES = ["folders", "categories", "tasks", "note_categories", "notes", "note_entries"];
+let syncedSnapshot = Object.fromEntries(SYNC_TABLES.map(t => [t, []]));
 
 function diffRows(prev, next) {
   const prevById = new Map(prev.map(r => [r.id, JSON.stringify(r)]));
@@ -1905,18 +2377,15 @@ async function flushNow() {
   setFileStatus("saving");
   const next = rowsFromState();
   try {
-    const d = {
-      folders: diffRows(syncedSnapshot.folders, next.folders),
-      categories: diffRows(syncedSnapshot.categories, next.categories),
-      tasks: diffRows(syncedSnapshot.tasks, next.tasks)
-    };
+    const d = {};
+    for (const t of SYNC_TABLES) d[t] = diffRows(syncedSnapshot[t] || [], next[t] || []);
     // Foreign keys dictate the order: children die first, parents are born first.
-    if (d.tasks.deletes.length) await deleteRows("tasks", d.tasks.deletes);
-    if (d.categories.deletes.length) await deleteRows("categories", d.categories.deletes);
-    if (d.folders.deletes.length) await deleteRows("folders", d.folders.deletes);
-    if (d.folders.upserts.length) await upsertRows("folders", d.folders.upserts);
-    if (d.categories.upserts.length) await upsertRows("categories", d.categories.upserts);
-    if (d.tasks.upserts.length) await upsertRows("tasks", d.tasks.upserts);
+    for (const t of [...SYNC_TABLES].reverse()) {
+      if (d[t].deletes.length) await deleteRows(t, d[t].deletes);
+    }
+    for (const t of SYNC_TABLES) {
+      if (d[t].upserts.length) await upsertRows(t, d[t].upserts);
+    }
 
     syncedSnapshot = next;
     dirty = false;
@@ -1946,9 +2415,11 @@ function defaultData() {
         { id: uuid(), name: "Today" },
         { id: uuid(), name: "This week" },
         { id: uuid(), name: "Someday" }
-      ]
+      ],
+      noteCategories: []
     }],
     tasks: [],
+    notes: [],
     activeFolderId: folderId
   };
 }
@@ -2528,6 +2999,8 @@ let categoryModalCtx = null;
 
 function openCategoryModal(folder, cat) {
   categoryModalCtx = { folder, cat };
+  // The same dialog serves note categories, which swap this text out.
+  $("#category-private-help").textContent = CARD_PRIVATE_HELP;
   categoryNameInput.value = cat.name;
   categoryPrivateInput.checked = !!cat.private;
   const taskCount = state.tasks.filter(t => t.categoryId === cat.id).length;
@@ -2563,7 +3036,11 @@ function saveCategoryFromModal() {
     revealedCategories.delete(cat.id);
     changed = true;
   }
-  if (changed) { save(); renderBoard(); }
+  if (changed) {
+    save();
+    if (categoryModalCtx.kind === "notes") renderNotes();
+    else renderBoard();
+  }
   closeCategoryModal();
 }
 categorySaveBtn.addEventListener("click", saveCategoryFromModal);
@@ -2572,9 +3049,10 @@ categoryNameInput.addEventListener("keydown", e => {
 });
 categoryDeleteBtn.addEventListener("click", async () => {
   if (!categoryModalCtx) return;
-  const { folder, cat } = categoryModalCtx;
+  const { folder, cat, kind } = categoryModalCtx;
   closeCategoryModal();
-  await deleteCategory(folder, cat);
+  if (kind === "notes") await deleteNoteCategory(folder, cat);
+  else await deleteCategory(folder, cat);
 });
 
 async function deleteCategory(folder, cat) {
@@ -2981,7 +3459,7 @@ function prefixLines(textarea, prefixFn) {
   textarea.focus();
   textarea.dispatchEvent(new Event("input", { bubbles: true }));
 }
-$$(".md-btn").forEach(btn => {
+$$(".md-btn", mdToolbar).forEach(btn => {
   btn.addEventListener("click", async () => {
     const kind = btn.dataset.md;
     if (kind === "bold") wrapSelection(taskDesc, "**");
@@ -3130,16 +3608,22 @@ function renderFoldersList() {
             toast("At least one folder must exist.");
             return;
           }
+          const noteCatIds = new Set((f.noteCategories || []).map(c => c.id));
+          const noteCount = state.notes.filter(x => noteCatIds.has(x.categoryId)).length;
+          const parts = [];
+          if (taskCount) parts.push(`${taskCount} task${taskCount === 1 ? "" : "s"}`);
+          if (noteCount) parts.push(`${noteCount} note${noteCount === 1 ? "" : "s"}`);
           const yes = await confirm({
             title: `Delete "${f.name}"?`,
-            text: taskCount
-              ? `This will delete the folder and its ${taskCount} task${taskCount === 1 ? "" : "s"}. This can't be undone.`
-              : "This folder has no tasks.",
+            text: parts.length
+              ? `This will delete the folder and its ${parts.join(" and ")}. This can't be undone.`
+              : "This folder has no tasks or notes.",
             okLabel: "Delete"
           });
           if (!yes) return;
           state.folders = state.folders.filter(x => x.id !== f.id);
           state.tasks = state.tasks.filter(t => t.folderId !== f.id);
+          state.notes = state.notes.filter(x => !noteCatIds.has(x.categoryId));
           if (state.activeFolderId === f.id) state.activeFolderId = state.folders[0].id;
           save();
           renderFoldersList();
@@ -3162,7 +3646,8 @@ $("#folder-create").addEventListener("click", () => {
       { id: uuid(), name: "Today" },
       { id: uuid(), name: "This week" },
       { id: uuid(), name: "Someday" }
-    ]
+    ],
+    noteCategories: []
   };
   state.folders.push(folder);
   save();
@@ -3186,14 +3671,17 @@ function exportBoard() {
   // which is only incidentally kept in step when a card moves.
   const catFolder = new Map();
   state.folders.forEach(f => (f.categories || []).forEach(c => catFolder.set(c.id, f.id)));
+  const noteCatFolder = new Map();
+  state.folders.forEach(f => (f.noteCategories || []).forEach(c => noteCatFolder.set(c.id, f.id)));
 
   const payload = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     folders: state.folders.map(f => ({
       id: f.id,
       name: f.name,
-      categories: (f.categories || []).map(c => ({ id: c.id, name: c.name, private: !!c.private }))
+      categories: (f.categories || []).map(c => ({ id: c.id, name: c.name, private: !!c.private })),
+      noteCategories: (f.noteCategories || []).map(c => ({ id: c.id, name: c.name, private: !!c.private }))
     })),
     tasks: state.tasks
       .filter(t => catFolder.has(t.categoryId))
@@ -3210,6 +3698,19 @@ function exportBoard() {
         createdAt: t.createdAt,
         completedAt: t.completedAt || null
       })),
+    notes: state.notes
+      .filter(x => noteCatFolder.has(x.categoryId))
+      .map(x => ({
+        id: x.id,
+        folderId: noteCatFolder.get(x.categoryId),
+        categoryId: x.categoryId,
+        title: x.title || "",
+        private: !!x.private,
+        archived: !!x.archived,
+        archivedAt: x.archivedAt || null,
+        createdAt: x.createdAt,
+        entries: x.entries.map(e => ({ id: e.id, createdAt: e.createdAt, html: e.body || "" }))
+      })),
     activeFolderId: state.activeFolderId
   };
 
@@ -3219,6 +3720,11 @@ function exportBoard() {
     let m;
     while ((m = re.exec(t.description))) images.add(m[1]);
   });
+  payload.notes.forEach(x => x.entries.forEach(e => {
+    const re = /data-sb="([^"]+)"/g;
+    let m;
+    while ((m = re.exec(e.html))) images.add("sb:" + m[1]);
+  }));
 
   const stamp = new Date().toISOString().slice(0, 10);
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -3229,9 +3735,8 @@ function exportBoard() {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-  const note = images.size
-    ? `${payload.tasks.length} tasks exported \u2014 ${images.size} image(s) stay in Storage`
-    : `${payload.tasks.length} tasks exported`;
+  const what = `${payload.tasks.length} tasks and ${payload.notes.length} notes exported`;
+  const note = images.size ? `${what} \u2014 ${images.size} image(s) stay in Storage` : what;
   toast(note, { duration: 6000 });
 }
 
@@ -3325,7 +3830,7 @@ function findTasks(query) {
     const subject = (t.subject || "").toLowerCase();
     const desc = (t.description || "").toLowerCase();
     if (!subject.includes(q) && !desc.includes(q)) continue;
-    hits.push(Object.assign({ task: t }, meta.get(t.categoryId)));
+    hits.push(Object.assign({ kind: "task", task: t }, meta.get(t.categoryId)));
   }
   return hits.sort((a, b) => (a.task.completed ? 1 : 0) - (b.task.completed ? 1 : 0));
 }
@@ -3356,15 +3861,17 @@ function markMatch(text, q) {
   return frag;
 }
 
+const hitKey = h => (h.kind === "note" ? "n:" + h.note.id : "t:" + h.task.id);
+
 function renderSearch(opts) {
   const keepIndex = !!(opts && opts.keepIndex);
   const raw = searchInput.value.trim();
   const q = raw.toLowerCase();
   const previous = keepIndex ? searchHits[searchIndex] : null;
-  searchHits = findTasks(raw);
+  searchHits = [...findTasks(raw), ...findNotes(raw)];
 
   if (keepIndex && previous) {
-    const again = searchHits.findIndex(h => h.task.id === previous.task.id);
+    const again = searchHits.findIndex(h => hitKey(h) === hitKey(previous));
     searchIndex = again >= 0 ? again : 0;
   } else {
     searchIndex = 0;
@@ -3378,8 +3885,8 @@ function renderSearch(opts) {
   if (!raw) {
     searchResults.append(el("div", { class: "search-empty" },
       searchAllFolders.checked
-        ? "Searching every folder, completed tasks included."
-        : `Searching "${(currentFolder() || {}).name || ""}", completed tasks included.`));
+        ? "Searching cards and notes in every folder, completed and archived included."
+        : `Searching cards and notes in "${(currentFolder() || {}).name || ""}", completed and archived included.`));
     return;
   }
   if (!searchHits.length) {
@@ -3387,7 +3894,14 @@ function renderSearch(opts) {
     return;
   }
 
+  const firstNote = searchHits.findIndex(h => h.kind === "note");
   searchHits.forEach((hit, i) => {
+    if (hit.kind === "note") {
+      if (i === firstNote) searchResults.append(el("div", { class: "search-group" }, "Notes"));
+      searchResults.append(renderNoteHit(hit, i, q));
+      return;
+    }
+    if (i === 0 && firstNote > 0) searchResults.append(el("div", { class: "search-group" }, "Cards"));
     const t = hit.task;
     // A private card is blurred here too: the only way to read it is to open it.
     const hidden = hit.hidden || !!t.private;
@@ -3443,7 +3957,8 @@ function openSearchHit() {
     updateFolderLabel();
     renderBoard();
   }
-  openTaskModal(hit.task);
+  if (hit.kind === "note") openNoteModal(hit.note);
+  else openTaskModal(hit.task);
 }
 
 searchInput.addEventListener("input", () => renderSearch());
@@ -3479,7 +3994,8 @@ function isTypingTarget(node) {
 
 function anyModalOpen() {
   return !taskModal.hidden || !quickModal.hidden || !categoryModal.hidden ||
-         !foldersModal.hidden || !searchModal.hidden || !$("#confirm-modal").hidden;
+         !foldersModal.hidden || !searchModal.hidden || !$("#confirm-modal").hidden ||
+         !noteModal.hidden;
 }
 
 // Columns holding at least one open task. Completed tasks render into a
@@ -3500,6 +4016,9 @@ function focusCard(card) {
 function restoreBoardFocus() {
   if (anyModalOpen()) return;
   if (isTypingTarget(document.activeElement)) return;
+  // A row in the notes pane is somewhere focus is allowed to stay.
+  const active = document.activeElement;
+  if (active && active.closest && active.closest("#notes-pane")) return;
   const grid = navGrid();
   if (!grid.length) { focusedTaskId = null; return; }
   let card = focusedTaskId &&
@@ -3542,6 +4061,7 @@ document.addEventListener("keydown", e => {
   if (!state) return;
   if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
   if (anyModalOpen() || isTypingTarget(e.target)) return;
+  if (e.target.closest && e.target.closest("#notes-pane")) { notesArrow(e); return; }
 
   const grid = navGrid();
   if (!grid.length) return;
@@ -3559,18 +4079,21 @@ document.addEventListener("keydown", e => {
   if (e.key === "ArrowUp") focusCard(col[at.r - 1] || col[0]);
   else if (e.key === "ArrowDown") focusCard(col[at.r + 1] || col[col.length - 1]);
   else if (e.key === "ArrowLeft" && at.c > 0) focusCard(grid[at.c - 1][0]);
+  else if (e.key === "ArrowLeft") focusNotesPane();
   else if (e.key === "ArrowRight" && at.c < grid.length - 1) focusCard(grid[at.c + 1][0]);
 });
 
 /* ---------- Keyboard shortcuts ---------- */
 document.addEventListener("keydown", e => {
-  // "n" — quick add. Guarded on any open dialog, not just on focus being in a
-  // text field: the task modal's preview pane is a focusable div, so the field
-  // check alone let N stack quick-add on top of an open task.
+  // "n" — quick add, Shift+N — new note. Guarded on any open dialog, not just
+  // on focus being in a text field: the task modal's preview pane is a
+  // focusable div, so the field check alone let N stack quick-add on top of an
+  // open task.
   if ((e.key === "n" || e.key === "N") && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (!state || anyModalOpen() || isTypingTarget(e.target)) return;
     e.preventDefault();
-    openQuickAdd();
+    if (e.shiftKey) newNote();
+    else openQuickAdd();
     return;
   }
   // Ctrl/Cmd+F — search
@@ -3583,13 +4106,1406 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (e.key === "Escape") {
+    // The confirm dialog handles its own Esc; whatever is underneath stays.
+    if (!$("#confirm-modal").hidden) return;
     if (!categoryModal.hidden) closeCategoryModal();
     else if (!quickModal.hidden) closeQuickAdd();
     else if (!taskModal.hidden) closeTaskModal();
+    else if (!noteModal.hidden) closeNoteModal();
     else if (!foldersModal.hidden) closeFoldersModal();
     else if (searchOpen()) closeSearch();
   }
 });
+
+/* ---------- Notes ---------- */
+// A OneNote-style pane beside the board. Each folder has its own note
+// categories; a note is one line in the pane and opens into a thread of
+// timestamped entries, newest first. Entries are rich text edited in place,
+// stored as sanitised HTML.
+const notesPane = $("#notes-pane");
+const notesList = $("#notes-list");
+const notesNewBtn = $("#notes-new");
+const notesAddCatBtn = $("#notes-add-cat");
+const notesResizer = $("#notes-resizer");
+const noteModal = $("#note-modal");
+const notePanel = $("#note-panel");
+const noteHeading = $("#note-heading");
+const noteHeadingHint = $("#note-heading-hint");
+const noteEntriesEl = $("#note-entries");
+const noteCategorySel = $("#note-category");
+const noteMetaEl = $("#note-meta");
+const noteArchiveBtn = $("#note-archive");
+const notePrivateBtn = $("#note-private");
+const noteBanner = $("#note-archived-banner");
+const noteLinkBar = $("#note-link-bar");
+const noteLinkInput = $("#note-link-input");
+
+let notesAvailable = true;   // false when the notes tables don't exist yet
+let openNoteId = null;
+let lastNoteCatId = null;    // where New note lands
+let notesDrag = null;        // { kind: "note" | "ncat" | "entry", id }
+let notesRenderedFor = null; // folder id the pane was last drawn for
+let archiveOpen = false;
+let lastEntryBody = null;    // the toolbar acts on this when nothing is selected
+let noteSavedRange = null;   // { range, body } kept while the link bar has focus
+
+const NOTES_WIDTH_KEY = "todo.notesWidth";
+const NOTES_COLLAPSED_KEY = "todo.notesCollapsed";
+const NOTES_CLOSED_KEY = "todo.notesClosed";
+const NOTES_WIDTH_DEFAULT = 280;
+
+function readStored(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v == null ? fallback : JSON.parse(v);
+  } catch { return fallback; }
+}
+function writeStored(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+// Collapsed categories are remembered per machine; which ones are open is a
+// layout preference, not data.
+const closedNoteCats = new Set(readStored(NOTES_CLOSED_KEY, []));
+function persistClosedNoteCats() { writeStored(NOTES_CLOSED_KEY, [...closedNoteCats]); }
+
+/* Lookups */
+function noteCategoriesOf(folder) {
+  if (!folder) return [];
+  if (!folder.noteCategories) folder.noteCategories = [];
+  return folder.noteCategories;
+}
+function findNoteCategory(catId) {
+  for (const f of state.folders) {
+    const c = (f.noteCategories || []).find(x => x.id === catId);
+    if (c) return { folder: f, cat: c };
+  }
+  return null;
+}
+function openNote() {
+  return openNoteId ? state.notes.find(n => n.id === openNoteId) || null : null;
+}
+function notesInCategory(catId) {
+  return state.notes.filter(n => n.categoryId === catId && !n.archived);
+}
+function noteHidden(note) {
+  const found = findNoteCategory(note.categoryId);
+  return !!note.private || categoryHidden(found && found.cat);
+}
+function latestEntryAt(note) {
+  let best = note.createdAt, bestT = Date.parse(note.createdAt) || 0;
+  for (const e of note.entries) {
+    const t = Date.parse(e.createdAt) || 0;
+    if (t > bestT) { best = e.createdAt; bestT = t; }
+  }
+  return best;
+}
+
+/* Dates. en-GB for a 24-hour clock and day-before-month, whatever the browser. */
+function daysSince(iso) {
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((today - d) / 86400000);
+}
+function noteShortDate(iso) {
+  if (!iso) return "";
+  const n = daysSince(iso);
+  if (n <= 0) return "today";
+  if (n < 7) return n + "d";
+  const d = new Date(iso);
+  const opts = d.getFullYear() === new Date().getFullYear()
+    ? { day: "numeric", month: "short" } : { month: "short", year: "numeric" };
+  return d.toLocaleDateString("en-GB", opts).replace("Sept", "Sep");
+}
+function entryStamp(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+    .replace(",", "").replace("Sept", "Sep")
+    + " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+function entryAgo(iso) {
+  const n = daysSince(iso);
+  if (n <= 0) return "today";
+  if (n === 1) return "yesterday";
+  if (n < 14) return `${n} days ago`;
+  if (n < 60) return `${Math.round(n / 7)} weeks ago`;
+  if (n < 730) return `${Math.round(n / 30)} months ago`;
+  return `${Math.round(n / 365)} years ago`;
+}
+
+/* ---------- Entry HTML: sanitising, images, links ---------- */
+// Everything that reaches an entry goes through cleanNoteHtml: pastes from
+// the web or Word, and what is read back from the database. It rebuilds a
+// small whitelist of elements from scratch, so no attribute, style or handler
+// from the source survives. The parse happens in a <template>, whose content
+// is inert: no image loads and no script runs while it is being read.
+const NOTE_TAGS = {
+  B: "strong", STRONG: "strong", I: "em", EM: "em", U: "u", S: "s", STRIKE: "s", DEL: "s",
+  P: "p", DIV: "div", TR: "div", BR: "br", UL: "ul", OL: "ol", LI: "li",
+  BLOCKQUOTE: "blockquote", PRE: "pre", CODE: "code", A: "a", IMG: "img",
+  H1: "h", H2: "h", H3: "h", H4: "h", H5: "h", H6: "h"
+};
+const NOTE_DROP = new Set(["SCRIPT", "STYLE", "TEMPLATE", "IFRAME", "OBJECT", "EMBED", "SVG", "MATH",
+  "HEAD", "TITLE", "META", "LINK", "NOSCRIPT", "INPUT", "BUTTON", "SELECT", "TEXTAREA",
+  "CANVAS", "VIDEO", "AUDIO"]);
+
+// An image pasted a moment ago is shown from memory while it uploads; the
+// entry holds a placeholder token until Storage has it.
+const pendingUploads = new Map(); // token -> blob URL
+
+function safeHref(href) {
+  const h = (href || "").trim();
+  return /^(https?:|mailto:)/i.test(h) ? h : null;
+}
+
+function cleanNoteHtml(html) {
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html || "";
+  const out = document.createDocumentFragment();
+  const walk = (src, dst) => {
+    for (const n of src.childNodes) {
+      if (n.nodeType === 3) { dst.append(n.textContent); continue; }
+      if (n.nodeType !== 1 || NOTE_DROP.has(n.tagName)) continue;
+      const tag = NOTE_TAGS[n.tagName];
+      if (tag === "br") { dst.append(document.createElement("br")); continue; }
+      if (tag === "img") {
+        const ref = n.getAttribute("data-sb");
+        const token = n.getAttribute("data-pending");
+        if (ref && /^[\w-]+\.[a-z0-9]+$/i.test(ref)) dst.append(el("img", { "data-sb": ref, alt: "" }));
+        else if (token && pendingUploads.has(token)) dst.append(el("img", { "data-pending": token, alt: "" }));
+        continue;
+      }
+      if (tag === "a") {
+        const href = safeHref(n.getAttribute("href"));
+        if (!href) { walk(n, dst); continue; }
+        const a = el("a", { href, target: "_blank", rel: "noopener noreferrer" });
+        walk(n, a);
+        dst.append(a);
+        continue;
+      }
+      if (tag === "h") {
+        const b = document.createElement("strong");
+        walk(n, b);
+        dst.append(el("p", {}, b));
+        continue;
+      }
+      if (!tag) {
+        walk(n, dst);
+        // Table cells would otherwise run into each other.
+        if (n.tagName === "TD" || n.tagName === "TH") dst.append(" ");
+        continue;
+      }
+      const e = document.createElement(tag);
+      walk(n, e);
+      dst.append(e);
+    }
+  };
+  walk(tpl.content, out);
+  return out;
+}
+
+// What gets stored: the cleaned markup, without any signed image URL.
+function entryHtml(body) {
+  const box = document.createElement("div");
+  box.append(cleanNoteHtml(body.innerHTML));
+  if (!box.textContent.trim() && !box.querySelector("img")) return "";
+  return box.innerHTML;
+}
+
+// Plain text for search, cached against the body it was made from.
+function entryText(entry) {
+  if (entry._textOf !== entry.body) {
+    const tpl = document.createElement("template");
+    tpl.innerHTML = (entry.body || "").replace(/<(br|\/div|\/p|\/li)\b[^>]*>/gi, " $&");
+    entry._text = tpl.content.textContent.replace(/\s+/g, " ").trim();
+    entry._textOf = entry.body;
+  }
+  return entry._text;
+}
+
+function hydrateNoteImages(root) {
+  for (const img of root.querySelectorAll("img[data-sb]")) {
+    if (img.getAttribute("src")) continue;
+    resolveImage("sb:" + img.dataset.sb).then(url => { if (url) img.src = url; });
+  }
+  for (const img of root.querySelectorAll("img[data-pending]")) {
+    const url = pendingUploads.get(img.dataset.pending);
+    if (url && !img.getAttribute("src")) img.src = url;
+  }
+}
+
+function fixLinkTargets(root) {
+  for (const a of root.querySelectorAll("a")) {
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+  }
+}
+
+// Bare URLs become links when you leave an entry, so a pasted or typed
+// address is clickable without any markup.
+function autolinkNode(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const hits = [];
+  while (walker.nextNode()) {
+    const t = walker.currentNode;
+    if (t.parentElement && t.parentElement.closest("a")) continue;
+    if (/https?:\/\/\S/.test(t.textContent)) hits.push(t);
+  }
+  for (const t of hits) {
+    const frag = document.createDocumentFragment();
+    t.textContent.split(/(https?:\/\/[^\s<>"'`]+)/g).forEach((part, i) => {
+      if (!part) return;
+      if (i % 2 === 0) { frag.append(part); return; }
+      const trail = (part.match(/[.,;:!?)\]]+$/) || [""])[0];
+      const url = trail ? part.slice(0, -trail.length) : part;
+      frag.append(el("a", { href: url, target: "_blank", rel: "noopener noreferrer" }, url));
+      if (trail) frag.append(trail);
+    });
+    t.replaceWith(frag);
+  }
+  return hits.length > 0;
+}
+
+function normalizeUrl(raw) {
+  const s = raw.trim();
+  if (/^(https?:\/\/|mailto:)\S+$/i.test(s)) return s;
+  if (/^[^\s@/]+@[^\s@]+\.[a-z]{2,}$/i.test(s)) return "mailto:" + s;
+  if (/^[\w-]+(\.[\w-]+)+(:\d+)?(\/\S*)?$/i.test(s)) return "https://" + s;
+  return null;
+}
+
+/* ---------- The pane ---------- */
+function setNotesWidth(px) {
+  notesPane.style.width = Math.round(Math.max(200, Math.min(600, px))) + "px";
+}
+function setNotesCollapsed(on) {
+  notesPane.classList.toggle("collapsed", on);
+  const btn = $("#notes-collapse");
+  btn.title = on ? "Show notes" : "Hide notes";
+  btn.setAttribute("aria-label", btn.title);
+  writeStored(NOTES_COLLAPSED_KEY, on);
+}
+setNotesWidth(Number(readStored(NOTES_WIDTH_KEY, NOTES_WIDTH_DEFAULT)) || NOTES_WIDTH_DEFAULT);
+setNotesCollapsed(!!readStored(NOTES_COLLAPSED_KEY, false));
+$("#notes-collapse").addEventListener("click", () =>
+  setNotesCollapsed(!notesPane.classList.contains("collapsed")));
+
+notesResizer.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  notesResizer.setPointerCapture(e.pointerId);
+  notesResizer.classList.add("active");
+  document.body.classList.add("resizing");
+  const x0 = e.clientX;
+  const w0 = notesPane.getBoundingClientRect().width;
+  const move = ev => setNotesWidth(w0 + ev.clientX - x0);
+  const up = () => {
+    notesResizer.removeEventListener("pointermove", move);
+    notesResizer.classList.remove("active");
+    document.body.classList.remove("resizing");
+    writeStored(NOTES_WIDTH_KEY, parseInt(notesPane.style.width, 10));
+  };
+  notesResizer.addEventListener("pointermove", move);
+  notesResizer.addEventListener("pointerup", up, { once: true });
+  notesResizer.addEventListener("lostpointercapture", up, { once: true });
+});
+notesResizer.addEventListener("dblclick", () => {
+  setNotesWidth(NOTES_WIDTH_DEFAULT);
+  writeStored(NOTES_WIDTH_KEY, NOTES_WIDTH_DEFAULT);
+});
+
+function dropHalf(e, node) {
+  const r = node.getBoundingClientRect();
+  return e.clientY < r.top + r.height / 2 ? "before" : "after";
+}
+function clearNotesDrop() {
+  $$(".drop-before, .drop-after, .drop-into", notesList).forEach(n =>
+    n.classList.remove("drop-before", "drop-after", "drop-into"));
+  $$(".drop-before, .drop-after", noteEntriesEl).forEach(n =>
+    n.classList.remove("drop-before", "drop-after"));
+}
+function endNotesDrag() {
+  notesDrag = null;
+  clearNotesDrop();
+  $$(".dragging", notesList).forEach(n => n.classList.remove("dragging"));
+  $$(".dragging", noteEntriesEl).forEach(n => n.classList.remove("dragging"));
+}
+
+function renderNotes() {
+  if (!state) return;
+  notesRenderedFor = state.activeFolderId;
+  const scroll = notesList.scrollTop;
+  const focusedKey = document.activeElement && notesList.contains(document.activeElement)
+    ? document.activeElement.dataset.focusKey : null;
+  notesList.innerHTML = "";
+  notesNewBtn.disabled = !notesAvailable;
+  notesAddCatBtn.hidden = !notesAvailable;
+
+  if (!notesAvailable) {
+    notesList.append(el("div", { class: "notes-empty" },
+      "Notes need three new tables. Run supabase/schema.sql again in the Supabase SQL editor, then reload."));
+    return;
+  }
+  const folder = currentFolder();
+  const cats = noteCategoriesOf(folder);
+  if (!cats.length) {
+    notesList.append(el("div", { class: "notes-empty" }, "No notes in this folder yet."));
+  }
+  for (const cat of cats) notesList.append(renderNoteCategory(folder, cat));
+
+  const catIds = new Set(cats.map(c => c.id));
+  const archived = state.notes
+    .filter(n => n.archived && catIds.has(n.categoryId))
+    .sort((a, b) => (Date.parse(b.archivedAt) || 0) - (Date.parse(a.archivedAt) || 0));
+  if (archived.length) notesList.append(renderArchivedSection(archived));
+
+  notesList.scrollTop = scroll;
+  if (focusedKey) {
+    const again = notesList.querySelector(`[data-focus-key="${focusedKey}"]`);
+    if (again) again.focus({ preventScroll: true });
+  }
+}
+
+function toggleNoteCategory(catId) {
+  if (closedNoteCats.has(catId)) closedNoteCats.delete(catId);
+  else closedNoteCats.add(catId);
+  persistClosedNoteCats();
+  renderNotes();
+}
+
+function renderNoteCategory(folder, cat) {
+  const notes = notesInCategory(cat.id);
+  const closed = closedNoteCats.has(cat.id);
+  const hidden = categoryHidden(cat);
+  const section = el("section", {
+    class: "nc" + (closed ? " closed" : "") + (hidden ? " private-hidden" : ""),
+    dataset: { ncatId: cat.id }
+  });
+
+  const reveal = cat.private ? el("button", {
+    class: "iconbtn nc-reveal" + (hidden ? "" : " on"),
+    title: hidden ? "Show titles" : "Hide titles",
+    "aria-label": hidden ? "Show titles" : "Hide titles",
+    onclick: e => {
+      e.stopPropagation();
+      if (revealedCategories.has(cat.id)) revealedCategories.delete(cat.id);
+      else revealedCategories.add(cat.id);
+      renderNotes();
+      if (searchOpen()) renderSearch({ keepIndex: true });
+    }
+  }, svg(hidden ? "eye-off" : "eye", 13, 13)) : null;
+
+  const chev = svg("chevron-right", 12, 12);
+  chev.classList.add("nc-chev");
+  const head = el("div", {
+    class: "nc-head",
+    draggable: "true",
+    tabindex: "0",
+    role: "button",
+    "aria-expanded": closed ? "false" : "true",
+    dataset: { focusKey: "c:" + cat.id },
+    title: "Click to fold, drag to reorder",
+    onclick: () => toggleNoteCategory(cat.id),
+    onkeydown: e => {
+      if (e.target !== head) return;
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleNoteCategory(cat.id); }
+    }
+  },
+    chev,
+    el("span", { class: "nc-name" }, cat.name),
+    el("span", { class: "nc-count" }, String(notes.length)),
+    reveal,
+    el("span", { class: "nc-actions" },
+      el("button", {
+        class: "iconbtn nc-act", title: `New note in ${cat.name}`, "aria-label": `New note in ${cat.name}`,
+        onclick: e => { e.stopPropagation(); newNote(cat); }
+      }, svg("plus", 13, 13)),
+      el("button", {
+        class: "iconbtn nc-act", title: "Category settings", "aria-label": "Category settings",
+        onclick: e => { e.stopPropagation(); openNoteCategoryModal(folder, cat); }
+      }, svg("gear", 13, 13))
+    )
+  );
+
+  head.addEventListener("dragstart", e => {
+    if (e.target !== head) return;
+    notesDrag = { kind: "ncat", id: cat.id };
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/x-note-category", cat.id);
+    requestAnimationFrame(() => section.classList.add("dragging"));
+  });
+  head.addEventListener("dragend", endNotesDrag);
+
+  // A category takes a dragged category above or below it, and a dragged note
+  // onto its header (or anywhere in it, while it's empty) to the top.
+  const takesNote = e => !!e.target.closest(".nc-head") || !notes.length;
+  section.addEventListener("dragover", e => {
+    if (!notesDrag) return;
+    if (notesDrag.kind === "ncat" && notesDrag.id !== cat.id) {
+      e.preventDefault();
+      clearNotesDrop();
+      section.classList.add("drop-" + dropHalf(e, section));
+    } else if (notesDrag.kind === "note" && takesNote(e)) {
+      e.preventDefault();
+      clearNotesDrop();
+      head.classList.add("drop-into");
+    }
+  });
+  section.addEventListener("drop", e => {
+    if (!notesDrag) return;
+    const drag = notesDrag;
+    if (drag.kind === "ncat" && drag.id !== cat.id) {
+      e.preventDefault();
+      const where = dropHalf(e, section);
+      endNotesDrag();
+      moveNoteCategory(folder, drag.id, cat.id, where);
+    } else if (drag.kind === "note" && takesNote(e)) {
+      e.preventDefault();
+      endNotesDrag();
+      moveNote(drag.id, cat.id, null, "top");
+    }
+  });
+
+  const body = el("div", { class: "nc-notes" }, notes.map(n => renderNoteRow(n)));
+  section.append(head, body);
+  return section;
+}
+
+function renderArchivedSection(notes) {
+  const chev = svg("chevron-right", 12, 12);
+  chev.classList.add("nc-chev");
+  const icon = svg("archive", 12, 12);
+  icon.classList.add("nc-archive-icon");
+  const toggle = () => { archiveOpen = !archiveOpen; renderNotes(); };
+  const head = el("div", {
+    class: "nc-head",
+    tabindex: "0",
+    role: "button",
+    "aria-expanded": archiveOpen ? "true" : "false",
+    dataset: { focusKey: "archive" },
+    onclick: toggle,
+    onkeydown: e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    }
+  }, chev, icon, el("span", { class: "nc-name" }, "Archived"),
+     el("span", { class: "nc-count" }, String(notes.length)));
+  return el("section", { class: "nc nc-archive" + (archiveOpen ? "" : " closed") },
+    head, el("div", { class: "nc-notes" }, notes.map(n => renderNoteRow(n, { archived: true }))));
+}
+
+function renderNoteRow(note, { archived = false } = {}) {
+  const found = findNoteCategory(note.categoryId);
+  const hidden = noteHidden(note);
+  const count = note.entries.length;
+  const latest = latestEntryAt(note);
+  const row = el("button", {
+    class: "note-row" + (note.id === openNoteId ? " active" : "")
+      + (hidden ? " hidden-text" : "") + (note.title ? "" : " untitled"),
+    draggable: archived ? null : "true",
+    dataset: { noteId: note.id, focusKey: "n:" + note.id },
+    // A tooltip would give away a blurred title.
+    title: hidden ? "Private — open the note to read it" : (note.title || "Untitled"),
+    onclick: () => openNoteModal(note)
+  },
+    el("span", { class: "note-row-title" }, note.title || "Untitled"),
+    note.private ? el("span", { class: "note-row-private", "aria-label": "Private" }, svg("eye-off", 11, 11)) : null,
+    (!archived && count > 1)
+      ? el("span", { class: "note-row-count", title: `${count} entries` }, String(count)) : null,
+    archived
+      ? el("span", { class: "note-row-cat" }, found ? found.cat.name : "")
+      : el("span", { class: "note-row-date", title: latest ? "Latest entry " + entryStamp(latest) : "" },
+          noteShortDate(latest))
+  );
+  if (archived) return row;
+
+  row.addEventListener("dragstart", e => {
+    notesDrag = { kind: "note", id: note.id };
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/x-note", note.id);
+    requestAnimationFrame(() => row.classList.add("dragging"));
+  });
+  row.addEventListener("dragend", endNotesDrag);
+  row.addEventListener("dragover", e => {
+    if (!notesDrag || notesDrag.kind !== "note" || notesDrag.id === note.id) return;
+    e.preventDefault();
+    clearNotesDrop();
+    row.classList.add("drop-" + dropHalf(e, row));
+  });
+  row.addEventListener("drop", e => {
+    if (!notesDrag || notesDrag.kind !== "note" || notesDrag.id === note.id) return;
+    e.preventDefault();
+    const id = notesDrag.id;
+    const where = dropHalf(e, row);
+    endNotesDrag();
+    moveNote(id, note.categoryId, note.id, where);
+  });
+  return row;
+}
+
+// Order lives in state.notes, like tasks: position is renumbered per category
+// on every sync, so moving a note is just moving it in the array.
+function moveNote(noteId, catId, anchorId, where) {
+  const note = state.notes.find(n => n.id === noteId);
+  if (!note) return;
+  state.notes.splice(state.notes.indexOf(note), 1);
+  note.categoryId = catId;
+  let at = -1;
+  if (anchorId) {
+    const anchor = state.notes.find(n => n.id === anchorId);
+    if (anchor) at = state.notes.indexOf(anchor) + (where === "after" ? 1 : 0);
+  }
+  if (at < 0) {
+    const first = state.notes.findIndex(n => n.categoryId === catId);
+    at = first < 0 ? state.notes.length : first;
+  }
+  state.notes.splice(at, 0, note);
+  if (!note.archived) lastNoteCatId = catId;
+  if (closedNoteCats.delete(catId)) persistClosedNoteCats();
+  save();
+  renderNotes();
+}
+
+function moveNoteCategory(folder, srcId, targetId, where) {
+  const cats = noteCategoriesOf(folder);
+  const from = cats.findIndex(c => c.id === srcId);
+  if (from < 0 || srcId === targetId) return;
+  const [moved] = cats.splice(from, 1);
+  let to = cats.findIndex(c => c.id === targetId);
+  if (to < 0) { cats.splice(from, 0, moved); return; }
+  if (where === "after") to++;
+  cats.splice(to, 0, moved);
+  save();
+  renderNotes();
+}
+
+notesAddCatBtn.addEventListener("click", () => {
+  const input = el("input", { class: "nc-new-input", placeholder: "Category name", maxlength: "60" });
+  notesAddCatBtn.hidden = true;
+  notesAddCatBtn.after(input);
+  input.focus();
+  let done = false;
+  const finish = keep => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim().slice(0, 60);
+    input.remove();
+    notesAddCatBtn.hidden = false;
+    if (!keep || !name) return;
+    const cat = { id: uuid(), name, private: false };
+    noteCategoriesOf(currentFolder()).push(cat);
+    lastNoteCatId = cat.id;
+    save();
+    renderNotes();
+    notesList.scrollTop = notesList.scrollHeight;
+  };
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+});
+
+notesNewBtn.addEventListener("click", () => newNote());
+
+// Up/down walk the pane's rows and headers; right hands focus to the board.
+function notesArrow(e) {
+  if (e.ctrlKey || e.metaKey) return;
+  const items = $$(".nc-head, .note-row", notesList).filter(n => n.offsetParent !== null);
+  if (!items.length) return;
+  const i = items.indexOf(e.target.closest(".nc-head, .note-row"));
+  if (e.key === "ArrowDown") { e.preventDefault(); (i < 0 ? items[0] : items[i + 1] || items[i]).focus(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); (i < 0 ? items[0] : items[i - 1] || items[i]).focus(); }
+  else if (e.key === "ArrowRight") {
+    e.preventDefault();
+    const grid = navGrid();
+    if (grid.length) focusCard(grid[0][0]);
+  }
+}
+function focusNotesPane() {
+  if (notesPane.classList.contains("collapsed")) return false;
+  const first = $$(".note-row, .nc-head", notesList).find(n => n.offsetParent !== null);
+  if (!first) return false;
+  first.focus();
+  return true;
+}
+
+/* ---------- Note categories (settings share the column modal) ---------- */
+const CARD_PRIVATE_HELP = $("#category-private-help").textContent;
+const NOTE_PRIVATE_HELP = "Blur the note titles in the list. Always starts blurred when the app "
+  + "opens; the eye on the category reveals it for this session.";
+
+function openNoteCategoryModal(folder, cat) {
+  categoryModalCtx = { folder, cat, kind: "notes" };
+  categoryNameInput.value = cat.name;
+  categoryPrivateInput.checked = !!cat.private;
+  const n = state.notes.filter(x => x.categoryId === cat.id).length;
+  categoryModalSub.textContent = n
+    ? `${n} note${n === 1 ? "" : "s"} in this category, archived ones included.`
+    : "No notes in this category.";
+  $("#category-private-help").textContent = NOTE_PRIVATE_HELP;
+  categoryDeleteBtn.disabled = false;
+  categoryDeleteBtn.title = "";
+  categoryModal.hidden = false;
+  setTimeout(() => { categoryNameInput.focus(); categoryNameInput.select(); }, 10);
+  focusTrap(categoryModal);
+}
+
+async function deleteNoteCategory(folder, cat) {
+  const n = state.notes.filter(x => x.categoryId === cat.id).length;
+  const yes = await confirm({
+    title: `Delete "${cat.name}"?`,
+    text: n
+      ? `Its ${n} note${n === 1 ? "" : "s"}, archived ones included, are deleted from the database `
+        + `permanently. There is no undo — export first if you want a copy.`
+      : "The category has no notes.",
+    okLabel: "Delete"
+  });
+  if (!yes) return;
+  folder.noteCategories = noteCategoriesOf(folder).filter(c => c.id !== cat.id);
+  state.notes = state.notes.filter(x => x.categoryId !== cat.id);
+  if (closedNoteCats.delete(cat.id)) persistClosedNoteCats();
+  save();
+  renderNotes();
+}
+
+/* ---------- Creating ---------- */
+function newNote(cat) {
+  if (!state) return;
+  if (!notesAvailable) {
+    toast("Notes need the new tables — run supabase/schema.sql in Supabase first.");
+    return;
+  }
+  const folder = currentFolder();
+  const cats = noteCategoriesOf(folder);
+  if (!cat) cat = cats.find(c => c.id === lastNoteCatId) || cats[0];
+  if (!cat) {
+    cat = { id: uuid(), name: "Notes", private: false };
+    cats.push(cat);
+  }
+  const now = new Date().toISOString();
+  const note = {
+    id: uuid(), categoryId: cat.id, title: "", private: false,
+    archived: false, archivedAt: null, createdAt: now,
+    entries: [{ id: uuid(), body: "", createdAt: now }]
+  };
+  const first = state.notes.findIndex(n => n.categoryId === cat.id);
+  if (first < 0) state.notes.push(note);
+  else state.notes.splice(first, 0, note);
+  lastNoteCatId = cat.id;
+  if (closedNoteCats.delete(cat.id)) persistClosedNoteCats();
+  save();
+  renderNotes();
+  openNoteModal(note, { fresh: true });
+}
+
+/* ---------- The note window ---------- */
+function paintNotePrivate(note) {
+  const on = !!note.private;
+  notePrivateBtn.innerHTML = "";
+  notePrivateBtn.append(svg(on ? "eye-off" : "eye", 16, 16));
+  notePrivateBtn.classList.toggle("on", on);
+  notePrivateBtn.title = on ? "Private — blurred in the list" : "Mark private";
+  notePrivateBtn.setAttribute("aria-label", on ? "Make readable in the list" : "Mark private");
+}
+function paintNoteArchived(note) {
+  noteBanner.hidden = !note.archived;
+  noteBanner.textContent = note.archivedAt
+    ? `Archived ${fmtDate(note.archivedAt)} — kept out of the list, still searchable.`
+    : "Archived — kept out of the list, still searchable.";
+  noteArchiveBtn.textContent = note.archived ? "Unarchive" : "Archive";
+}
+function updateNoteMeta(note) {
+  const n = note.entries.length;
+  noteMetaEl.innerHTML = "";
+  noteMetaEl.append(el("span", {}, `${n} entr${n === 1 ? "y" : "ies"}`),
+    ` · started ${fmtDate(note.createdAt)}`);
+}
+function fillNoteCategorySelect(note) {
+  const found = findNoteCategory(note.categoryId);
+  noteCategorySel.innerHTML = "";
+  for (const c of noteCategoriesOf(found ? found.folder : currentFolder())) {
+    noteCategorySel.append(el("option", { value: c.id, selected: c.id === note.categoryId ? true : null }, c.name));
+  }
+}
+function autoSizeNoteHeading() {
+  noteHeading.style.height = "auto";
+  noteHeading.style.height = noteHeading.scrollHeight + "px";
+}
+function markActiveNoteRow() {
+  $$(".note-row", notesList).forEach(r => r.classList.toggle("active", r.dataset.noteId === openNoteId));
+}
+
+function openNoteModal(note, { fresh = false } = {}) {
+  if (!noteModal.hidden && openNoteId && openNoteId !== note.id && !closeNoteModal()) return;
+  openNoteId = note.id;
+  if (!note.archived) lastNoteCatId = note.categoryId;
+  lastEntryBody = null;
+  noteHeading.value = note.title || "";
+  noteHeading.classList.remove("invalid");
+  noteHeadingHint.hidden = true;
+  hideLinkBar();
+  fillNoteCategorySelect(note);
+  paintNotePrivate(note);
+  paintNoteArchived(note);
+  renderNoteEntries(note);
+  noteModal.hidden = false;
+  autoSizeNoteHeading();
+  noteEntriesEl.scrollTop = 0;
+  focusTrap(noteModal);
+  markActiveNoteRow();
+  // Focus has to leave the board, or Space would still complete the card
+  // behind the window. The panel itself takes it when there's nothing to type.
+  setTimeout(() => (fresh ? noteHeading : notePanel).focus(), 10);
+}
+
+function renderNoteEntries(note) {
+  noteEntriesEl.innerHTML = "";
+  if (!note.entries.length) {
+    noteEntriesEl.append(el("button", { class: "entry-none", onclick: () => addNoteEntry() },
+      "No entries yet — click to write the first one."));
+  }
+  for (const entry of note.entries) noteEntriesEl.append(renderEntry(note, entry));
+  updateNoteMeta(note);
+}
+
+let entryCommitTimer = null;
+function commitEntry(entry, body) {
+  clearTimeout(entryCommitTimer);
+  entryCommitTimer = null;
+  const html = entryHtml(body);
+  if (html !== entry.body) { entry.body = html; save(); }
+}
+function scheduleEntryCommit(entry, body) {
+  clearTimeout(entryCommitTimer);
+  entryCommitTimer = setTimeout(() => commitEntry(entry, body), 300);
+}
+function commitNoteHeading() {
+  const note = openNote();
+  if (!note) return;
+  const t = noteHeading.value.replace(/\s+/g, " ").trim().slice(0, 200);
+  // An emptied heading isn't saved; closing asks for one instead.
+  if (t && t !== note.title) { note.title = t; save(); }
+}
+const scheduleHeadingCommit = debounce(commitNoteHeading, 300);
+
+// Everything typed so far, into state, before anything re-renders or closes.
+function flushNoteEdits(note, { closing = false } = {}) {
+  scheduleHeadingCommit.flush();
+  commitNoteHeading();
+  for (const art of $$(".entry", noteEntriesEl)) {
+    const entry = note.entries.find(x => x.id === art.dataset.entryId);
+    const body = $(".entry-body", art);
+    if (!entry || !body) continue;
+    if (closing || document.activeElement !== body) autolinkNode(body);
+    commitEntry(entry, body);
+  }
+}
+
+function entryFor(body) {
+  const note = openNote();
+  const art = body && body.closest(".entry");
+  return note && art ? note.entries.find(e => e.id === art.dataset.entryId) || null : null;
+}
+
+function renderEntry(note, entry) {
+  const art = el("article", { class: "entry", dataset: { entryId: entry.id } });
+  const grip = el("div", { class: "entry-grip", title: "Drag to reorder", "aria-hidden": "true" }, svg("grip", 10, 16));
+  const body = el("div", {
+    class: "entry-body md",
+    contenteditable: "true",
+    spellcheck: "false",
+    role: "textbox",
+    "aria-multiline": "true",
+    "aria-label": "Entry, " + entryStamp(entry.createdAt)
+  });
+  body.append(cleanNoteHtml(entry.body));
+  autolinkNode(body);
+  hydrateNoteImages(body);
+
+  body.addEventListener("focus", () => { lastEntryBody = body; });
+  body.addEventListener("input", () => scheduleEntryCommit(entry, body));
+  body.addEventListener("blur", e => {
+    // Linking rewrites text nodes, which would strand the range the link bar
+    // is holding on to.
+    if (e.relatedTarget !== noteLinkInput) autolinkNode(body);
+    commitEntry(entry, body);
+  });
+  body.addEventListener("click", e => {
+    const a = e.target.closest("a");
+    if (!a || !body.contains(a)) return;
+    e.preventDefault();
+    const href = safeHref(a.getAttribute("href"));
+    if (href) window.open(href, "_blank", "noopener,noreferrer");
+  });
+  body.addEventListener("paste", e => handleEntryPaste(e, entry, body));
+  body.addEventListener("keydown", e => entryKeydown(e, body));
+  body.addEventListener("drop", e => {
+    const file = [...((e.dataTransfer && e.dataTransfer.files) || [])].find(f => f.type.startsWith("image/"));
+    if (!file) return;
+    e.preventDefault();
+    e.stopPropagation();
+    body.focus();
+    const r = document.caretRangeFromPoint && document.caretRangeFromPoint(e.clientX, e.clientY);
+    if (r && body.contains(r.startContainer)) {
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    insertNoteImage(file, entry, body);
+  });
+
+  // Only the handle starts a drag, so selecting text inside an entry still works.
+  grip.addEventListener("pointerdown", () => { art.draggable = true; });
+  grip.addEventListener("pointerup", () => { art.draggable = false; });
+  art.addEventListener("dragstart", e => {
+    if (e.target !== art) return;
+    notesDrag = { kind: "entry", id: entry.id };
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/x-note-entry", entry.id);
+    requestAnimationFrame(() => art.classList.add("dragging"));
+  });
+  art.addEventListener("dragend", e => {
+    if (e.target !== art) return;
+    art.draggable = false;
+    endNotesDrag();
+  });
+  art.addEventListener("dragover", e => {
+    if (!notesDrag || notesDrag.kind !== "entry" || notesDrag.id === entry.id) return;
+    e.preventDefault();
+    clearNotesDrop();
+    art.classList.add("drop-" + dropHalf(e, art));
+  });
+  art.addEventListener("drop", e => {
+    if (!notesDrag || notesDrag.kind !== "entry" || notesDrag.id === entry.id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const id = notesDrag.id;
+    const where = dropHalf(e, art);
+    endNotesDrag();
+    moveNoteEntry(note, id, entry.id, where);
+  });
+
+  const del = el("button", {
+    class: "iconbtn entry-del", title: "Delete entry", "aria-label": "Delete entry",
+    onclick: () => deleteNoteEntry(note, entry)
+  }, svg("trash", 13, 13));
+
+  art.append(grip,
+    el("div", { class: "entry-head" },
+      el("time", { class: "entry-time", datetime: entry.createdAt }, entryStamp(entry.createdAt)),
+      el("span", { class: "entry-ago" }, entryAgo(entry.createdAt)),
+      del),
+    body);
+  return art;
+}
+
+// "- " or "* " at the start of a line starts a bulleted list, "1. " a numbered
+// one; Tab and Shift+Tab indent and outdent list items.
+function entryKeydown(e, body) {
+  if (e.key === "Tab") {
+    const sel = getSelection();
+    const node = sel.anchorNode;
+    const host = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (host && host.closest("li") && body.contains(host)) {
+      e.preventDefault();
+      document.execCommand(e.shiftKey ? "outdent" : "indent");
+    }
+    return;
+  }
+  if (e.key !== " " || e.ctrlKey || e.metaKey || e.altKey) return;
+  const sel = getSelection();
+  if (!sel.isCollapsed || !sel.anchorNode || sel.anchorNode.nodeType !== 3) return;
+  const node = sel.anchorNode;
+  const before = node.textContent.slice(0, sel.anchorOffset);
+  const cmd = before === "-" || before === "*" ? "insertUnorderedList"
+    : before === "1." ? "insertOrderedList" : null;
+  if (!cmd) return;
+  if (node.previousSibling && node.previousSibling.nodeName !== "BR") return;
+  const parent = node.parentElement;
+  if (parent.closest("li")) return;
+  if (parent !== body && !/^(DIV|P)$/.test(parent.tagName)) return;
+  e.preventDefault();
+  const r = document.createRange();
+  r.setStart(node, 0);
+  r.setEnd(node, sel.anchorOffset);
+  sel.removeAllRanges();
+  sel.addRange(r);
+  document.execCommand("delete");
+  document.execCommand(cmd);
+}
+
+function textToNodes(text) {
+  const out = [];
+  text.replace(/\r\n?/g, "\n").split("\n").forEach((line, i) => {
+    if (i) out.push(document.createElement("br"));
+    if (line) out.push(document.createTextNode(line));
+  });
+  return out;
+}
+
+function handleEntryPaste(e, entry, body) {
+  const dt = e.clipboardData;
+  if (!dt) return;
+  const item = [...dt.items].find(it => it.kind === "file" && it.type.startsWith("image/"));
+  if (item) {
+    e.preventDefault();
+    const file = item.getAsFile();
+    if (file) insertNoteImage(file, entry, body);
+    return;
+  }
+  const text = dt.getData("text/plain");
+  const html = dt.getData("text/html");
+  e.preventDefault();
+  const sel = getSelection();
+  // A bare link pasted over selected text links the selection.
+  if (/^https?:\/\/\S+$/.test(text.trim()) && !sel.isCollapsed) {
+    document.execCommand("createLink", false, text.trim());
+    fixLinkTargets(body);
+    return;
+  }
+  const box = document.createElement("div");
+  if (html) box.append(cleanNoteHtml(html));
+  else box.append(...textToNodes(text));
+  autolinkNode(box);
+  if (!box.innerHTML) return;
+  document.execCommand("insertHTML", false, box.innerHTML);
+  fixLinkTargets(body);
+  hydrateNoteImages(body);
+}
+
+// The image shows at once from memory; the entry is saved with a placeholder,
+// and the placeholder becomes a Storage reference when the upload lands,
+// wherever the entry is by then, open or not.
+async function insertNoteImage(file, entry, body) {
+  const token = uuid();
+  const blobUrl = URL.createObjectURL(file);
+  pendingUploads.set(token, blobUrl);
+  if (document.activeElement !== body) body.focus();
+  document.execCommand("insertHTML", false, `<img data-pending="${token}" src="${blobUrl}" alt="">`);
+  commitEntry(entry, body);
+  const ext = (((file.type || "").split("/")[1] || "png").split(";")[0]
+    .replace("jpeg", "jpg").replace(/[^a-z0-9]/gi, "")) || "png";
+  try {
+    const ref = await uploadImage(file, ext);
+    const name = ref.slice(3);
+    // This session already has the pixels; no need to fetch them back.
+    signedUrlCache.set(ref, { url: blobUrl, expires: Infinity });
+    pendingUploads.delete(token);
+    for (const img of document.querySelectorAll(`img[data-pending="${token}"]`)) {
+      img.removeAttribute("data-pending");
+      img.setAttribute("data-sb", name);
+    }
+    swapPendingImage(token, `data-sb="${name}"`);
+  } catch (err) {
+    pendingUploads.delete(token);
+    document.querySelectorAll(`img[data-pending="${token}"]`).forEach(img => img.remove());
+    swapPendingImage(token, null);
+    URL.revokeObjectURL(blobUrl);
+    toast("Couldn't upload image: " + (err.message || err));
+  }
+}
+function swapPendingImage(token, replacement) {
+  for (const n of state.notes) {
+    for (const e of n.entries) {
+      if (!e.body.includes(token)) continue;
+      e.body = replacement
+        ? e.body.split(`data-pending="${token}"`).join(replacement)
+        : e.body.replace(new RegExp(`<img[^>]*data-pending="${token}"[^>]*>`, "g"), "");
+      save();
+    }
+  }
+}
+
+function addNoteEntry() {
+  const note = openNote();
+  if (!note) return;
+  const entry = { id: uuid(), body: "", createdAt: new Date().toISOString() };
+  note.entries.unshift(entry);
+  save();
+  const none = $(".entry-none", noteEntriesEl);
+  if (none) none.remove();
+  const art = renderEntry(note, entry);
+  art.classList.add("fresh");
+  noteEntriesEl.prepend(art);
+  noteEntriesEl.scrollTop = 0;
+  updateNoteMeta(note);
+  $(".entry-body", art).focus();
+}
+
+function moveNoteEntry(note, srcId, targetId, where) {
+  flushNoteEdits(note);
+  const moving = note.entries.find(x => x.id === srcId);
+  const target = note.entries.find(x => x.id === targetId);
+  if (!moving || !target || moving === target) return;
+  note.entries.splice(note.entries.indexOf(moving), 1);
+  note.entries.splice(note.entries.indexOf(target) + (where === "after" ? 1 : 0), 0, moving);
+  save();
+  renderNoteEntries(note);
+}
+
+function deleteNoteEntry(note, entry) {
+  const live = $(`.entry[data-entry-id="${entry.id}"] .entry-body`, noteEntriesEl);
+  if (live) commitEntry(entry, live);
+  const idx = note.entries.indexOf(entry);
+  if (idx < 0) return;
+  note.entries.splice(idx, 1);
+  save();
+  renderNoteEntries(note);
+  if (!entry.body) return; // nothing worth an undo
+  toast("Entry deleted", {
+    actionLabel: "Undo",
+    onAction: () => {
+      if (!state.notes.includes(note)) return;
+      note.entries.splice(Math.min(idx, note.entries.length), 0, entry);
+      save();
+      if (openNoteId === note.id) renderNoteEntries(note);
+      renderNotes();
+    }
+  });
+}
+
+function hideNoteModal() {
+  openNoteId = null;
+  lastEntryBody = null;
+  hideLinkBar();
+  noteModal.hidden = true;
+  releaseFocusTrap();
+  blurInside(noteModal);
+}
+
+// Where focus goes once the window is gone: back into search if that's what
+// opened it, else to the note's row, else to the board.
+function afterNoteClosed(noteId) {
+  if (searchOpen()) {
+    renderSearch({ keepIndex: true });
+    focusTrap(searchModal);
+    setTimeout(() => searchInput.focus(), 10);
+    return;
+  }
+  const row = noteId && $(`.note-row[data-note-id="${noteId}"]`, notesList);
+  if (row && row.offsetParent !== null) row.focus();
+  else restoreBoardFocus();
+}
+
+// Returns false when the note can't close yet because it has no heading.
+function closeNoteModal() {
+  const note = openNote();
+  if (!note) { hideNoteModal(); return true; }
+  flushNoteEdits(note, { closing: true });
+  const before = note.entries.length;
+  note.entries = note.entries.filter(e => e.body);
+  const title = noteHeading.value.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!title) {
+    if (note.entries.length) {
+      if (note.entries.length !== before) { save(); renderNoteEntries(note); }
+      noteHeading.classList.add("invalid");
+      noteHeadingHint.hidden = false;
+      noteHeading.focus();
+      return false;
+    }
+    // Nothing written at all: an abandoned New note, not a note.
+    state.notes = state.notes.filter(n => n !== note);
+  } else {
+    note.title = title;
+  }
+  save();
+  hideNoteModal();
+  renderNotes();
+  afterNoteClosed(note.id);
+  return true;
+}
+
+noteHeading.addEventListener("input", () => {
+  autoSizeNoteHeading();
+  if (noteHeading.value.trim()) {
+    noteHeading.classList.remove("invalid");
+    noteHeadingHint.hidden = true;
+  }
+  scheduleHeadingCommit();
+});
+noteHeading.addEventListener("keydown", e => {
+  if (e.key !== "Enter" || e.ctrlKey || e.metaKey) return;
+  e.preventDefault();
+  const first = $(".entry-body", noteEntriesEl);
+  if (first) first.focus();
+  else addNoteEntry();
+});
+
+noteCategorySel.addEventListener("change", () => {
+  const note = openNote();
+  const catId = noteCategorySel.value;
+  if (!note || catId === note.categoryId) return;
+  state.notes.splice(state.notes.indexOf(note), 1);
+  note.categoryId = catId;
+  const first = state.notes.findIndex(n => n.categoryId === catId);
+  state.notes.splice(first < 0 ? state.notes.length : first, 0, note);
+  if (!note.archived) lastNoteCatId = catId;
+  save();
+  renderNotes();
+});
+
+notePrivateBtn.addEventListener("click", () => {
+  const note = openNote();
+  if (!note) return;
+  note.private = !note.private;
+  save();
+  paintNotePrivate(note);
+  renderNotes();
+  if (searchOpen()) renderSearch({ keepIndex: true });
+});
+
+noteArchiveBtn.addEventListener("click", () => {
+  const note = openNote();
+  if (!note) return;
+  if (note.archived) {
+    note.archived = false;
+    note.archivedAt = null;
+    lastNoteCatId = note.categoryId;
+    save();
+    paintNoteArchived(note);
+    renderNotes();
+    const found = findNoteCategory(note.categoryId);
+    toast(`Back in ${found ? found.cat.name : "its category"}`, { duration: 2500 });
+    return;
+  }
+  if (!closeNoteModal()) return;
+  if (!state.notes.includes(note)) return; // it was empty and has been discarded
+  note.archived = true;
+  note.archivedAt = new Date().toISOString();
+  save();
+  renderNotes();
+  if (!searchOpen() && !notesPane.contains(document.activeElement)) restoreBoardFocus();
+  toast("Note archived", {
+    actionLabel: "Undo",
+    onAction: () => { note.archived = false; note.archivedAt = null; save(); renderNotes(); }
+  });
+});
+
+$("#note-delete").addEventListener("click", async () => {
+  const note = openNote();
+  if (!note) return;
+  flushNoteEdits(note, { closing: true });
+  const n = note.entries.filter(e => e.body).length;
+  const yes = await confirm({
+    title: "Delete this note?",
+    text: n
+      ? `Its ${n} entr${n === 1 ? "y goes" : "ies go"} with it. You can undo from the toast.`
+      : "It has no entries.",
+    okLabel: "Delete"
+  });
+  if (!yes || openNoteId !== note.id) return;
+  const idx = state.notes.indexOf(note);
+  note.entries = note.entries.filter(e => e.body);
+  hideNoteModal();
+  state.notes = state.notes.filter(x => x !== note);
+  save();
+  renderNotes();
+  afterNoteClosed(null);
+  toast("Note deleted", {
+    actionLabel: "Undo",
+    onAction: () => {
+      state.notes.splice(Math.min(idx, state.notes.length), 0, note);
+      save();
+      renderNotes();
+    }
+  });
+});
+
+$("#note-new-entry").addEventListener("click", addNoteEntry);
+$$("[data-close='note']").forEach(n => n.addEventListener("click", () => closeNoteModal()));
+
+noteModal.addEventListener("keydown", e => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  if (e.key === "Enter") { e.preventDefault(); addNoteEntry(); }
+  else if (e.key.toLowerCase() === "k") { e.preventDefault(); openLinkBar(); }
+});
+
+/* Formatting toolbar */
+function activeEntryBody() {
+  const sel = getSelection();
+  if (sel.rangeCount) {
+    const n = sel.getRangeAt(0).commonAncestorContainer;
+    const host = n.nodeType === 1 ? n : n.parentElement;
+    const body = host && host.closest(".entry-body");
+    if (body && noteEntriesEl.contains(body)) return body;
+  }
+  return lastEntryBody && lastEntryBody.isConnected ? lastEntryBody : null;
+}
+function caretToEnd(body) {
+  body.focus();
+  const r = document.createRange();
+  r.selectNodeContents(body);
+  r.collapse(false);
+  const sel = getSelection();
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
+const noteImageInput = el("input", { type: "file", accept: "image/*", style: "display:none" });
+document.body.append(noteImageInput);
+noteImageInput.addEventListener("change", () => {
+  const file = noteImageInput.files && noteImageInput.files[0];
+  if (!file || !openNote()) return;
+  let body = restoreNoteRange();
+  if (!body && lastEntryBody && lastEntryBody.isConnected) { body = lastEntryBody; caretToEnd(body); }
+  if (!body) { addNoteEntry(); body = $(".entry-body", noteEntriesEl); }
+  const entry = entryFor(body);
+  if (entry) insertNoteImage(file, entry, body);
+});
+
+$$("[data-fmt]", noteModal).forEach(btn => {
+  // Keeps the caret and selection in the entry while the button is pressed.
+  btn.addEventListener("mousedown", e => e.preventDefault());
+  btn.addEventListener("click", () => {
+    const kind = btn.dataset.fmt;
+    if (kind === "link") { openLinkBar(); return; }
+    if (kind === "image") {
+      saveNoteRange();
+      noteImageInput.value = "";
+      noteImageInput.click();
+      return;
+    }
+    const body = activeEntryBody() || $(".entry-body", noteEntriesEl);
+    if (!body) { addNoteEntry(); return; }
+    if (document.activeElement !== body) body.focus();
+    document.execCommand({ bold: "bold", italic: "italic", ul: "insertUnorderedList", ol: "insertOrderedList" }[kind]);
+  });
+});
+
+/* Links */
+function saveNoteRange() {
+  const sel = getSelection();
+  if (sel.rangeCount) {
+    const r = sel.getRangeAt(0);
+    const n = r.commonAncestorContainer;
+    const host = n.nodeType === 1 ? n : n.parentElement;
+    const body = host && host.closest(".entry-body");
+    if (body && noteEntriesEl.contains(body)) {
+      noteSavedRange = { range: r.cloneRange(), body };
+      return true;
+    }
+  }
+  noteSavedRange = null;
+  return false;
+}
+function restoreNoteRange() {
+  if (!noteSavedRange || !noteSavedRange.body.isConnected) return null;
+  const { range, body } = noteSavedRange;
+  body.focus();
+  const sel = getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  return body;
+}
+function linkAround(range) {
+  const n = range.startContainer;
+  const host = n.nodeType === 1 ? n : n.parentElement;
+  return host ? host.closest(".entry-body a") : null;
+}
+function openLinkBar() {
+  if (!saveNoteRange()) {
+    toast("Put the cursor in an entry, or select some text, first.", { duration: 2500 });
+    return;
+  }
+  const a = linkAround(noteSavedRange.range);
+  noteLinkInput.value = a ? a.getAttribute("href") : "";
+  noteLinkBar.hidden = false;
+  setTimeout(() => { noteLinkInput.focus(); noteLinkInput.select(); }, 0);
+}
+function hideLinkBar() { noteLinkBar.hidden = true; }
+function applyLink() {
+  const raw = noteLinkInput.value.trim();
+  hideLinkBar();
+  const body = restoreNoteRange();
+  if (!body) return;
+  const range = noteSavedRange.range;
+  const existing = linkAround(range);
+  if (!raw) {
+    if (existing) {
+      const sel = getSelection();
+      const r = document.createRange();
+      r.selectNodeContents(existing);
+      sel.removeAllRanges();
+      sel.addRange(r);
+      document.execCommand("unlink");
+    }
+    return;
+  }
+  const href = normalizeUrl(raw);
+  if (!href) { toast("That doesn't look like a web address.", { duration: 2500 }); return; }
+  if (existing) {
+    existing.setAttribute("href", href);
+    body.dispatchEvent(new Event("input"));
+  } else if (range.collapsed) {
+    document.execCommand("insertHTML", false,
+      `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(raw)}</a>`);
+  } else {
+    document.execCommand("createLink", false, href);
+    fixLinkTargets(body);
+  }
+}
+noteLinkInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); applyLink(); }
+  else if (e.key === "Escape") {
+    // Only the link bar: the note stays open.
+    e.preventDefault();
+    e.stopPropagation();
+    hideLinkBar();
+    restoreNoteRange();
+  }
+});
+noteLinkInput.addEventListener("blur", () => setTimeout(() => {
+  if (document.activeElement !== noteLinkInput) hideLinkBar();
+}, 120));
+
+/* ---------- Search ---------- */
+function findNotes(query) {
+  const q = query.trim().toLowerCase();
+  if (!q || !notesAvailable) return [];
+  const everywhere = searchAllFolders.checked;
+  const meta = new Map();
+  state.folders
+    .filter(f => everywhere || f.id === state.activeFolderId)
+    .forEach(f => (f.noteCategories || []).forEach(c =>
+      meta.set(c.id, {
+        folder: f.name, folderId: f.id, category: c.name,
+        catId: c.id, hidden: categoryHidden(c)
+      })));
+
+  const hits = [];
+  for (const n of state.notes) {
+    const m = meta.get(n.categoryId);
+    if (!m) continue;
+    let excerpt = "";
+    if (!(n.title || "").toLowerCase().includes(q)) {
+      const match = n.entries.find(e => entryText(e).toLowerCase().includes(q));
+      if (!match) continue;
+      excerpt = excerptAround(entryText(match), q);
+    }
+    hits.push(Object.assign({ kind: "note", note: n, excerpt }, m));
+  }
+  return hits.sort((a, b) => (a.note.archived ? 1 : 0) - (b.note.archived ? 1 : 0));
+}
+
+function renderNoteHit(hit, i, q) {
+  const n = hit.note;
+  const hidden = hit.hidden || !!n.private;
+  const subject = el("div", { class: "search-hit-subject" });
+  subject.append(markMatch(n.title || "Untitled", q));
+  const excerpt = hit.excerpt ? el("div", { class: "search-hit-excerpt" }) : null;
+  if (excerpt) excerpt.append(markMatch(hit.excerpt, q));
+  const meta = el("div", { class: "search-hit-meta" },
+    hidden ? el("span", { class: "search-hit-badge" }, "Private") : null,
+    n.archived ? el("span", { class: "search-hit-badge" }, "Archived") : null,
+    el("span", {}, searchAllFolders.checked ? `${hit.folder} › ${hit.category}` : hit.category));
+  return el("div", {
+    class: "search-hit note-hit" + (i === searchIndex ? " active" : "")
+      + (n.archived ? " done" : "") + (hidden ? " private-hidden" : ""),
+    dataset: { idx: String(i) },
+    onclick: () => { searchIndex = i; paintSearchSelection(); openSearchHit(); }
+  }, subject, excerpt, meta);
+}
 
 /* ---------- Keep urgency current as time passes ---------- */
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshUrgency(); });
@@ -3620,6 +5536,9 @@ const renderBoardOrig = renderBoard;
 renderBoard = function() {
   renderBoardOrig();
   updateFolderLabel();
+  // The notes pane follows the folder, but otherwise has no reason to redraw
+  // when a card changes.
+  if (state && notesRenderedFor !== state.activeFolderId) renderNotes();
 };
 
 /* ---------- Top bar buttons ---------- */
@@ -3801,6 +5720,7 @@ function svg(name, w = 16, h = 16) {
     star: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
     alert: `<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
     eye: `<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>`,
+    archive: `<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><line x1="10" y1="12" x2="14" y2="12"/>`,
     "eye-off": `<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M6.61 6.61A18.15 18.15 0 0 0 2 11s3.5 7 10 7a9.12 9.12 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>`
   };
   s.innerHTML = paths[name] || "";
