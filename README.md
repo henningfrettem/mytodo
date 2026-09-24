@@ -59,6 +59,8 @@ Supabase anyway.
    It creates a `todo` schema, six tables, row-level security, and a private
    `todo-images` bucket. It is safe to re-run, and re-running it is also how an
    existing project picks up tables added later, such as the notes tables.
+   Until those exist the board works as usual and the notes pane says what to
+   run.
 2. Add `todo` under **Settings → API → Exposed schemas**. PostgREST only serves
    schemas listed there, and without it every request comes back `404`.
 3. Create your user under **Authentication → Users**, and turn **off**
@@ -106,6 +108,10 @@ A bar along the bottom lists every keyboard shortcut.
 Cards are focusable and the arrow keys move between them: up/down within a
 column, left/right to the top of the adjacent column. Completed tasks and empty
 columns are skipped. Holding `Ctrl` moves the card itself rather than the focus.
+
+`←` from the first column moves into the notes pane, where up/down walk the
+category headers and notes, `Enter` opens a note or folds a category, and `→`
+goes back to the board.
 
 New cards take focus as soon as they're created, so `Enter` opens straight into
 the description with the cursor already in it.
@@ -243,7 +249,7 @@ this export is the only copy of your data that isn't in the database.
 | `↑` `↓` | Move focus within a column |
 | `←` `→` | Move focus to the top of the adjacent column; `←` from the first column moves into the notes pane |
 | `Ctrl` + arrows | Move the focused card itself |
-| `Enter` | Open the focused card |
+| `Enter` | Open the focused card or note; on a notes category, fold or unfold it |
 | `Space` | Mark the focused card done |
 | `Esc` | Close the topmost dialog (saving edits), then the search |
 | `Ctrl+F` | Search |
