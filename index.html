@@ -1734,6 +1734,95 @@
     color: var(--mute);
   }
 
+
+  /* ---------- Task lists in notes ---------- */
+  /* A card opened from a note's line sits above the note, and a confirm
+     from the card above that. */
+  #task-modal { z-index: 210; }
+  #confirm-modal { z-index: 220; }
+  .entry-body ul[data-tasks] { list-style: none; padding-left: 0; }
+  .entry-body ul[data-tasks] > li {
+    position: relative;
+    padding: 1px 30px 1px 26px;
+    margin-bottom: 2px;
+    border-radius: 4px;
+  }
+  .entry-body ul[data-tasks] > li::before {
+    content: "";
+    position: absolute;
+    left: 1px;
+    top: 5px;
+    width: 16px;
+    height: 16px;
+    box-sizing: border-box;
+    border: 1.5px solid var(--mute-2);
+    border-radius: 4px;
+    background: var(--card);
+    cursor: pointer;
+    transition: border-color .12s, background-color .12s;
+  }
+  .entry-body ul[data-tasks] > li[data-state="linked"]:hover::before { border-color: var(--accent); }
+  .entry-body ul[data-tasks] > li[data-done]::before {
+    border-color: var(--accent);
+    background: var(--accent) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>") no-repeat center / 10px;
+  }
+  .entry-body ul[data-tasks] > li[data-done] { color: var(--mute); }
+  .entry-body ul[data-tasks] > li[data-state="pending"]::before { border-style: dashed; cursor: text; }
+  .entry-body ul[data-tasks] > li[data-state="gone"]::before,
+  .entry-body ul[data-tasks] > li[data-state="plain"]::before {
+    content: "\2013";
+    top: 1px;
+    left: 4px;
+    width: auto;
+    height: auto;
+    border: 0;
+    background: none;
+    color: var(--mute-2);
+    cursor: text;
+  }
+  .entry-body ul[data-tasks] > li[data-state="gone"],
+  .entry-body ul[data-tasks] > li[data-state="plain"] { color: var(--mute); }
+  .entry-body ul[data-tasks] > li[data-due]::after {
+    content: attr(data-due);
+    display: inline-block;
+    margin-left: 8px;
+    padding: 0 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 18px;
+    background: var(--paper-2);
+    color: var(--mute);
+    white-space: nowrap;
+    vertical-align: 1px;
+    user-select: none;
+  }
+  .entry-body ul[data-tasks] > li[data-urgent]::after {
+    padding-left: 20px;
+    background: var(--due-bg) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0281a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>") no-repeat 6px center / 10px;
+    color: var(--due);
+    font-weight: 600;
+  }
+  .entry-body ul[data-tasks] > li.flash { animation: item-flash 1.6s var(--r); }
+  @keyframes item-flash { 0%, 50% { background: var(--accent-ghost); } 100% { background: transparent; } }
+  .item-open {
+    position: absolute;
+    z-index: 3;
+    width: 24px;
+    height: 24px;
+    background: var(--card);
+    border: 1px solid var(--rule-soft);
+    box-shadow: var(--shadow-sm);
+    color: var(--mute);
+  }
+  .item-open:hover { color: var(--accent); border-color: var(--accent-soft); background: var(--card); }
+  .task-note-link {
+    font-size: inherit;
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -2006,6 +2095,8 @@
         <div class="md-sep"></div>
         <button class="md-btn" data-fmt="ul" title="Bulleted list (or type - and a space)" aria-label="Bulleted list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg></button>
         <button class="md-btn" data-fmt="ol" title="Numbered list (or type 1. and a space)" aria-label="Numbered list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><path d="M4 6h1v4" stroke-width="1.8"/><path d="M3 12h3l-3 3.5h3" stroke-width="1.8"/><path d="M3 18h2.5a1 1 0 0 1 0 2H3v-2" stroke-width="1.8" fill="none"/></svg></button>
+        <div class="md-sep"></div>
+        <button class="md-btn" data-fmt="tasks" title="Task list: each line becomes a card (or type [] and a space)" aria-label="Task list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="m4.6 7 1.2 1.2 1.8-2"/><line x1="12" y1="7" x2="21" y2="7"/><rect x="3" y="14" width="6" height="6" rx="1.5"/><line x1="12" y1="17" x2="21" y2="17"/></svg></button>
         <div class="md-sep"></div>
         <button class="md-btn" data-fmt="link" title="Link (Ctrl+K)" aria-label="Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
         <button class="md-btn" data-fmt="image" title="Insert image (or paste one)" aria-label="Insert image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
@@ -2425,10 +2516,12 @@ function defaultData() {
 }
 
 let state = null;
+let noteLinkIndex = null; // task id -> the note line linking it; see noteForTask
 let dirty = false;
 
 function save() {
   dirty = true;
+  noteLinkIndex = null;
   if (state && state.activeFolderId) {
     localStorage.setItem("todo.activeFolderId", state.activeFolderId);
   }
@@ -2884,6 +2977,12 @@ function renderTaskCard(task) {
     chip.append(el("span", {}, dueLabel(task)));
     indicators.push(chip);
   }
+  const fromNote = noteForTask(task.id);
+  if (fromNote) {
+    indicators.push(el("span", {
+      title: noteHidden(fromNote.note) ? "From a private note" : `From note: ${fromNote.note.title || "Untitled"}`
+    }, svg("note", 11, 11)));
+  }
   const indicatorRow = indicators.length ? el("div", { class: "task-indicator" }, ...indicators) : null;
 
   const body = el("div", { class: "task-body" }, subject, indicatorRow);
@@ -3150,12 +3249,14 @@ function deleteTaskWithUndo(task) {
   const idx = state.tasks.findIndex(t => t.id === task.id);
   deleteTask(task);
   renderBoard();
+  refreshOpenNoteLinks();
   toast(`Deleted "${snapshot.subject || "task"}"`, {
     actionLabel: "Undo",
     onAction: () => {
       state.tasks.splice(idx, 0, snapshot);
       save();
       renderBoard();
+      refreshOpenNoteLinks();
     }
   });
 }
@@ -3363,6 +3464,13 @@ function closeTaskModal() {
   releaseFocusTrap();
   blurInside(taskModal);
   renderBoard();
+  if (!noteModal.hidden) {
+    // Opened from a line in a note: back to the note, showing any change.
+    refreshOpenNoteLinks();
+    focusTrap(noteModal);
+    setTimeout(() => notePanel.focus(), 10);
+    return;
+  }
   if (searchOpen()) {
     // The edit may have changed what matches, so refresh the list but hold
     // the selection on the same task.
@@ -3379,6 +3487,14 @@ function updateTaskMeta(task) {
   taskMeta.innerHTML = parts.map((p, i) =>
     i === 0 ? `<span>${escapeHtml(p)}</span>` : ` · <span>${escapeHtml(p)}</span>`
   ).join("");
+  const link = noteForTask(task.id);
+  if (link) {
+    taskMeta.append(" \u00b7 ", el("button", {
+      class: "task-note-link",
+      title: "Open the note this card belongs to",
+      onclick: () => goToNoteItem(link.note, task.id)
+    }, noteHidden(link.note) ? "From a private note" : `From note: ${link.note.title || "Untitled"}`));
+  }
 }
 
 function populateCategorySelect(sel, currentId) {
@@ -4260,11 +4376,11 @@ function safeHref(href) {
   return /^(https?:|mailto:)/i.test(h) ? h : null;
 }
 
-function cleanNoteHtml(html) {
+function cleanNoteHtml(html, { paste = false } = {}) {
   const tpl = document.createElement("template");
   tpl.innerHTML = html || "";
   const out = document.createDocumentFragment();
-  const walk = (src, dst) => {
+  const walk = (src, dst, inTasks = false) => {
     for (const n of src.childNodes) {
       if (n.nodeType === 3) { dst.append(n.textContent); continue; }
       if (n.nodeType !== 1 || NOTE_DROP.has(n.tagName)) continue;
@@ -4295,6 +4411,29 @@ function cleanNoteHtml(html) {
         walk(n, dst);
         // Table cells would otherwise run into each other.
         if (n.tagName === "TD" || n.tagName === "TH") dst.append(" ");
+        continue;
+      }
+      // A task list's direct items carry the id of their card; nothing else
+      // keeps an attribute.
+      if (tag === "ul" && n.hasAttribute("data-tasks")) {
+        const ul = el("ul", { "data-tasks": "" });
+        walk(n, ul, true);
+        dst.append(ul);
+        continue;
+      }
+      if (tag === "li" && inTasks) {
+        const li = document.createElement("li");
+        const id = n.getAttribute("data-task");
+        if (id && /^[\w-]{1,64}$/.test(id)) {
+          // A pasted copy of a line whose card is already linked stays
+          // plain text rather than claiming the same card twice.
+          if (paste && taskLinkedInNotes(id)) li.setAttribute("data-unlinked", "");
+          else li.setAttribute("data-task", id);
+        } else if (n.hasAttribute("data-unlinked")) {
+          li.setAttribute("data-unlinked", "");
+        }
+        walk(n, li);
+        dst.append(li);
         continue;
       }
       const e = document.createElement(tag);
@@ -4860,6 +4999,7 @@ function openNoteModal(note, { fresh = false } = {}) {
 }
 
 function renderNoteEntries(note) {
+  hideItemOpen();
   noteEntriesEl.innerHTML = "";
   if (!note.entries.length) {
     noteEntriesEl.append(el("button", { class: "entry-none", onclick: () => addNoteEntry() },
@@ -4873,6 +5013,8 @@ let entryCommitTimer = null;
 function commitEntry(entry, body) {
   clearTimeout(entryCommitTimer);
   entryCommitTimer = null;
+  reattachMovedText(body);
+  syncItemsToCards(body);
   const html = entryHtml(body);
   if (html !== entry.body) { entry.body = html; save(); }
 }
@@ -4898,6 +5040,7 @@ function flushNoteEdits(note, { closing = false } = {}) {
     const body = $(".entry-body", art);
     if (!entry || !body) continue;
     if (closing || document.activeElement !== body) autolinkNode(body);
+    reconcileTaskItems(note, entry, body);
     commitEntry(entry, body);
   }
 }
@@ -4921,17 +5064,30 @@ function renderEntry(note, entry) {
   });
   body.append(cleanNoteHtml(entry.body));
   autolinkNode(body);
+  decorateTaskItems(body, { syncText: true });
   hydrateNoteImages(body);
 
-  body.addEventListener("focus", () => { lastEntryBody = body; });
+  body.addEventListener("focus", () => {
+    lastEntryBody = body;
+    // What the entry links to as editing starts, so leaving it can tell
+    // which lines were taken out in between.
+    body._linked = linkSnapshot(body);
+  });
   body.addEventListener("input", () => scheduleEntryCommit(entry, body));
   body.addEventListener("blur", e => {
     // Linking rewrites text nodes, which would strand the range the link bar
-    // is holding on to.
-    if (e.relatedTarget !== noteLinkInput) autolinkNode(body);
+    // is holding on to; the link bar hands focus straight back anyway.
+    if (e.relatedTarget !== noteLinkInput) {
+      autolinkNode(body);
+      reconcileTaskItems(note, entry, body);
+    }
     commitEntry(entry, body);
   });
+  // Pressing a checkbox mustn't move the caret or pull focus into the entry.
+  body.addEventListener("mousedown", e => { if (checkboxHit(e)) e.preventDefault(); });
   body.addEventListener("click", e => {
+    const box = checkboxHit(e);
+    if (box) { e.preventDefault(); toggleItem(box); return; }
     const a = e.target.closest("a");
     if (!a || !body.contains(a)) return;
     e.preventDefault();
@@ -5001,8 +5157,22 @@ function renderEntry(note, entry) {
 }
 
 // "- " or "* " at the start of a line starts a bulleted list, "1. " a numbered
-// one; Tab and Shift+Tab indent and outdent list items.
+// one and "[] " a task list; Tab and Shift+Tab indent and outdent list items.
 function entryKeydown(e, body) {
+  const item = taskItemAt(body);
+  if (item) {
+    if (e.key === "Enter" && e.altKey) {
+      e.preventDefault();
+      if (item.dataset.state === "linked") openCardFromItem(item);
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      setTimeout(() => afterItemEnter(body), 0);
+      return;
+    }
+    // A task line is a card; indenting it would make it a bullet under one.
+    if (e.key === "Tab") { e.preventDefault(); return; }
+  }
   if (e.key === "Tab") {
     const sel = getSelection();
     const node = sel.anchorNode;
@@ -5019,7 +5189,8 @@ function entryKeydown(e, body) {
   const node = sel.anchorNode;
   const before = node.textContent.slice(0, sel.anchorOffset);
   const cmd = before === "-" || before === "*" ? "insertUnorderedList"
-    : before === "1." ? "insertOrderedList" : null;
+    : before === "1." ? "insertOrderedList"
+    : before === "[]" || before === "[ ]" ? "tasks" : null;
   if (!cmd) return;
   if (node.previousSibling && node.previousSibling.nodeName !== "BR") return;
   const parent = node.parentElement;
@@ -5032,7 +5203,12 @@ function entryKeydown(e, body) {
   sel.removeAllRanges();
   sel.addRange(r);
   document.execCommand("delete");
-  document.execCommand(cmd);
+  if (cmd === "tasks") {
+    makeTaskList(body);
+    decorateTaskItems(body);
+  } else {
+    document.execCommand(cmd);
+  }
 }
 
 function textToNodes(text) {
@@ -5065,13 +5241,14 @@ function handleEntryPaste(e, entry, body) {
     return;
   }
   const box = document.createElement("div");
-  if (html) box.append(cleanNoteHtml(html));
+  if (html) box.append(cleanNoteHtml(html, { paste: true }));
   else box.append(...textToNodes(text));
   autolinkNode(box);
   if (!box.innerHTML) return;
   document.execCommand("insertHTML", false, box.innerHTML);
   fixLinkTargets(body);
   hydrateNoteImages(body);
+  decorateTaskItems(body);
 }
 
 // The image shows at once from memory; the entry is saved with a placeholder,
@@ -5166,6 +5343,7 @@ function deleteNoteEntry(note, entry) {
 }
 
 function hideNoteModal() {
+  hideItemOpen();
   openNoteId = null;
   lastEntryBody = null;
   hideLinkBar();
@@ -5360,6 +5538,7 @@ $$("[data-fmt]", noteModal).forEach(btn => {
   btn.addEventListener("click", () => {
     const kind = btn.dataset.fmt;
     if (kind === "link") { openLinkBar(); return; }
+    if (kind === "tasks") { convertToTaskList(); return; }
     if (kind === "image") {
       saveNoteRange();
       noteImageInput.value = "";
@@ -5458,6 +5637,426 @@ noteLinkInput.addEventListener("keydown", e => {
 noteLinkInput.addEventListener("blur", () => setTimeout(() => {
   if (document.activeElement !== noteLinkInput) hideLinkBar();
 }, 120));
+
+/* ---------- Task lists: note lines that are cards ---------- */
+// A <ul data-tasks> in an entry is a checklist whose lines are cards on the
+// board. The card holds the text, the done state and the due date; a line
+// only points at its card (data-task) and displays it, so the two can't
+// disagree. What a line shows (data-state, data-done, data-due, data-urgent)
+// is worked out here each time and never stored: the sanitiser drops it.
+const TASK_ITEMS = "ul[data-tasks] > li";
+const removedLinked = new Map(); // task id -> what it takes to undo a removed line
+
+function taskById(id) {
+  return id ? state.tasks.find(t => t.id === id) || null : null;
+}
+function itemText(li) {
+  return li.textContent.replace(/\s+/g, " ").trim();
+}
+function taskItemAt(body) {
+  const n = getSelection().anchorNode;
+  const host = n && (n.nodeType === 1 ? n : n.parentElement);
+  const li = host && host.closest(TASK_ITEMS);
+  return li && body.contains(li) ? li : null;
+}
+
+// Which note line links a card. Rebuilt lazily after any save().
+function noteForTask(id) {
+  if (!noteLinkIndex) {
+    noteLinkIndex = new Map();
+    for (const n of state.notes || []) {
+      for (const e of n.entries) {
+        if (!e.body || !e.body.includes("data-task=")) continue;
+        for (const m of e.body.matchAll(/data-task="([^"]+)"/g)) {
+          if (!noteLinkIndex.has(m[1])) noteLinkIndex.set(m[1], { note: n, entry: e });
+        }
+      }
+    }
+  }
+  return noteLinkIndex.get(id) || null;
+}
+
+// Whether some line already points at this card: in the open note as it
+// stands on screen, or in any other note as saved.
+function taskLinkedInNotes(id) {
+  if (!noteModal.hidden && noteEntriesEl.querySelector(`li[data-task="${CSS.escape(id)}"]`)) return true;
+  const open = openNote();
+  const needle = `data-task="${id}"`;
+  return state.notes.some(n => n !== open && n.entries.some(e => (e.body || "").includes(needle)));
+}
+
+// Where each linked line sits, so a removed line can be put back by Undo.
+function linkSnapshot(body) {
+  const snap = new Map();
+  $$("ul[data-tasks]", body).forEach((ul, listIndex) => {
+    [...ul.children].forEach((li, itemIndex) => {
+      const id = li.tagName === "LI" && li.getAttribute("data-task");
+      if (id && !snap.has(id)) snap.set(id, { listIndex, itemIndex, text: itemText(li) });
+    });
+  });
+  return snap;
+}
+
+// Returns true when a line's text was replaced by its card's.
+function decorateTaskItems(body, { syncText = false } = {}) {
+  let textChanged = false;
+  const seen = new Set();
+  for (const li of body.querySelectorAll(TASK_ITEMS)) {
+    li.removeAttribute("data-done");
+    li.removeAttribute("data-due");
+    li.removeAttribute("data-urgent");
+    const id = li.getAttribute("data-task");
+    if (!id) {
+      li.dataset.state = li.hasAttribute("data-unlinked") ? "plain" : "pending";
+      continue;
+    }
+    let task = taskById(id);
+    // A line brought back by Ctrl+Z, or cut and pasted elsewhere, after
+    // leaving the entry had already taken its card away.
+    if (!task && removedLinked.has(id)) task = resurrectLinkedCard(id);
+    // The card was deleted on the board, or another line already has it.
+    if (!task || seen.has(id)) { li.dataset.state = "gone"; continue; }
+    seen.add(id);
+    li.dataset.state = "linked";
+    if (task.completed) li.setAttribute("data-done", "");
+    if (task.dueDate) {
+      li.setAttribute("data-due", dueLabel(task));
+      if (isUrgent(task)) li.setAttribute("data-urgent", "");
+    }
+    if (syncText && task.subject && itemText(li) !== task.subject) {
+      li.textContent = task.subject;
+      textChanged = true;
+    }
+  }
+  return textChanged;
+}
+
+// Deleting a whole line can leave the browser keeping that line's element
+// and moving the next line's text into it, which would quietly rename the
+// wrong card and delete the right one. A linked line that now reads exactly
+// like a card whose own line has vanished is taken to be that card's line.
+function reattachMovedText(body) {
+  if (!body._linked) return;
+  const present = new Set($$(TASK_ITEMS + "[data-task]", body).map(li => li.getAttribute("data-task")));
+  const orphans = [...body._linked.keys()].filter(id => !present.has(id)).map(taskById).filter(Boolean);
+  if (!orphans.length) return;
+  for (const li of body.querySelectorAll(TASK_ITEMS + "[data-task]")) {
+    const own = taskById(li.getAttribute("data-task"));
+    const text = itemText(li);
+    if (!own || own.subject === text) continue;
+    const match = orphans.find(t => t.subject === text);
+    if (!match) continue;
+    li.setAttribute("data-task", match.id);
+    orphans.splice(orphans.indexOf(match), 1, own);
+  }
+}
+
+// The card is the source of truth for the text, but it's typed in the note,
+// so typing flows into the card.
+function syncItemsToCards(body) {
+  let changed = false;
+  for (const li of body.querySelectorAll(TASK_ITEMS + '[data-state="linked"]')) {
+    const task = taskById(li.getAttribute("data-task"));
+    const text = itemText(li).slice(0, 500);
+    if (task && text && task.subject !== text) { task.subject = text; changed = true; }
+  }
+  if (changed) { save(); renderBoard(); }
+}
+
+function refreshOpenNoteLinks() {
+  const note = openNote();
+  if (!note) return;
+  for (const art of $$(".entry", noteEntriesEl)) {
+    const body = $(".entry-body", art);
+    const entry = note.entries.find(e => e.id === art.dataset.entryId);
+    if (!body || !entry) continue;
+    if (decorateTaskItems(body, { syncText: document.activeElement !== body })) commitEntry(entry, body);
+  }
+}
+
+// Turns the list the cursor is in, or the selected lines, into a task list.
+function makeTaskList(body) {
+  const host = n => n && (n.nodeType === 1 ? n : n.parentElement);
+  let node = host(getSelection().anchorNode);
+  if (!node || !body.contains(node)) return null;
+  let list = node.closest("ul, ol");
+  if (list && !body.contains(list)) list = null;
+  if (list && list.hasAttribute("data-tasks")) return list;
+  if (!list) {
+    document.execCommand("insertUnorderedList");
+    node = host(getSelection().anchorNode);
+    list = node && node.closest("ul");
+    if (!list || !body.contains(list)) return null;
+  } else if (list.tagName === "OL") {
+    const ul = document.createElement("ul");
+    while (list.firstChild) ul.append(list.firstChild);
+    list.replaceWith(ul);
+    list = ul;
+  }
+  list.setAttribute("data-tasks", "");
+  return list;
+}
+
+function convertToTaskList() {
+  let body = activeEntryBody() || $(".entry-body", noteEntriesEl);
+  if (!body) { addNoteEntry(); body = $(".entry-body", noteEntriesEl); }
+  if (!body) return;
+  if (document.activeElement !== body) body.focus();
+  if (!makeTaskList(body)) return;
+  // Converting is deliberate, so every line with text becomes a card now,
+  // the one with the cursor included.
+  reconcileTaskItems(openNote(), entryFor(body), body);
+}
+
+// Enter splits a line and the browser copies the old line's attributes onto
+// the new one, card link included. The half that still reads like the card
+// keeps it; the other is a new line.
+function afterItemEnter(body) {
+  if (!body.isConnected) return;
+  const lists = new Set($$(TASK_ITEMS, body).map(li => li.parentElement));
+  for (const list of lists) {
+    const byId = new Map();
+    for (const li of list.children) {
+      const id = li.tagName === "LI" && li.getAttribute("data-task");
+      if (!id) continue;
+      if (!byId.has(id)) byId.set(id, []);
+      byId.get(id).push(li);
+    }
+    for (const [id, lis] of byId) {
+      if (lis.length < 2) continue;
+      const task = taskById(id);
+      const keep = lis.find(li => task && itemText(li) === task.subject)
+        || lis.find(li => itemText(li)) || lis[0];
+      for (const li of lis) if (li !== keep) li.removeAttribute("data-task");
+    }
+  }
+  const current = taskItemAt(body);
+  if (current && !itemText(current)) current.removeAttribute("data-unlinked");
+  reconcileTaskItems(openNote(), entryFor(body), body, { finishing: false });
+}
+
+// Brings an entry's task lines and the board into line. While typing
+// (finishing: false) that only means making cards for finished lines;
+// on leaving the entry it also deletes cards whose lines are gone.
+function reconcileTaskItems(note, entry, body, { finishing = true } = {}) {
+  if (!note || !entry || !body.isConnected) return;
+  reattachMovedText(body);
+
+  // One line per card: any further line for the same card is plain text.
+  const seen = new Set();
+  for (const li of body.querySelectorAll(TASK_ITEMS + "[data-task]")) {
+    const id = li.getAttribute("data-task");
+    if (seen.has(id)) {
+      li.removeAttribute("data-task");
+      li.setAttribute("data-unlinked", "");
+    } else seen.add(id);
+  }
+
+  if (finishing) {
+    // A line emptied of its text counts as removed.
+    for (const li of [...body.querySelectorAll(TASK_ITEMS + "[data-task]")]) {
+      const task = taskById(li.getAttribute("data-task"));
+      if (task && task.subject && !itemText(li) && !li.querySelector("img")) li.remove();
+    }
+    for (const ul of [...body.querySelectorAll("ul[data-tasks]")]) {
+      if (!ul.children.length) ul.remove();
+    }
+  }
+
+  const typing = finishing ? null : taskItemAt(body);
+  const fresh = $$(TASK_ITEMS, body).filter(li =>
+    !li.hasAttribute("data-task") && !li.hasAttribute("data-unlinked") && li !== typing && itemText(li));
+  if (fresh.length) createCardsForItems(note, fresh, body);
+
+  if (finishing && body._linked) {
+    const here = new Set($$(TASK_ITEMS + "[data-task]", body).map(li => li.getAttribute("data-task")));
+    const elsewhere = id => $$(`li[data-task="${CSS.escape(id)}"]`, noteEntriesEl).some(li => !body.contains(li));
+    const gone = [...body._linked.keys()].filter(id => !here.has(id) && taskById(id) && !elsewhere(id));
+    if (gone.length) {
+      deleteLinkedCards(gone.map(id =>
+        Object.assign({ id, noteId: note.id, entryId: entry.id }, body._linked.get(id))));
+    }
+    body._linked = linkSnapshot(body);
+  }
+  decorateTaskItems(body);
+}
+
+function createCardsForItems(note, lis, body) {
+  const found = findNoteCategory(note.categoryId);
+  const folder = found ? found.folder : currentFolder();
+  const column = folder && folder.categories && folder.categories[0];
+  if (!column) return;
+  const isPrivate = !!note.private || !!(found && found.cat.private);
+  const now = new Date().toISOString();
+  for (const li of lis) {
+    const task = {
+      id: uuid(), folderId: folder.id, categoryId: column.id,
+      subject: itemText(li).slice(0, 500), description: "", dueDate: null,
+      completed: false, important: false, private: isPrivate,
+      createdAt: now, completedAt: null
+    };
+    li.removeAttribute("data-unlinked");
+    li.setAttribute("data-task", task.id);
+    // Straight after the card of the line above, while that card is still
+    // open in the first column, so the board keeps the list's order however
+    // many lines were typed one Enter at a time. Otherwise the top.
+    const prevLi = li.previousElementSibling;
+    const prev = prevLi && taskById(prevLi.getAttribute("data-task"));
+    if (prev && prev.categoryId === column.id && !prev.completed) {
+      state.tasks.splice(state.tasks.indexOf(prev) + 1, 0, task);
+    } else {
+      const first = state.tasks.findIndex(t => t.categoryId === column.id);
+      state.tasks.splice(first < 0 ? state.tasks.length : first, 0, task);
+    }
+  }
+  // Cards made during this visit count as linked from the start, so taking
+  // a line away again before leaving still takes its card with it.
+  if (body._linked) {
+    for (const [id, where] of linkSnapshot(body)) if (!body._linked.has(id)) body._linked.set(id, where);
+  }
+  save();
+  renderBoard();
+}
+
+function deleteLinkedCards(recs) {
+  for (const r of recs) {
+    r.task = taskById(r.id);
+    r.index = state.tasks.indexOf(r.task);
+    removedLinked.set(r.id, r);
+  }
+  const ids = new Set(recs.map(r => r.id));
+  state.tasks = state.tasks.filter(t => !ids.has(t.id));
+  save();
+  renderBoard();
+  const n = recs.length;
+  toast(n === 1 ? "Card deleted along with its line" : `${n} cards deleted along with their lines`, {
+    actionLabel: "Undo",
+    onAction: () => restoreLinkedCards(recs)
+  });
+}
+
+function resurrectLinkedCard(id) {
+  const r = removedLinked.get(id);
+  removedLinked.delete(id);
+  if (!taskById(id)) state.tasks.splice(Math.min(r.index, state.tasks.length), 0, r.task);
+  save();
+  renderBoard();
+  return r.task;
+}
+
+function restoreLinkedCards(recs) {
+  for (const r of [...recs].sort((a, b) => a.index - b.index)) {
+    removedLinked.delete(r.id);
+    if (!taskById(r.id)) state.tasks.splice(Math.min(r.index, state.tasks.length), 0, r.task);
+    if (!taskLinkedInNotes(r.id)) restoreLinkedLine(r);
+  }
+  save();
+  renderBoard();
+  refreshOpenNoteLinks();
+}
+
+// Puts a line back where it was: same list, same position, whether or not
+// its note is open.
+function restoreLinkedLine(r) {
+  const note = state.notes.find(n => n.id === r.noteId);
+  const entry = note && note.entries.find(e => e.id === r.entryId);
+  if (!entry) return; // the entry is gone; the card is back on the board regardless
+  const live = openNoteId === note.id
+    ? $(`.entry[data-entry-id="${r.entryId}"] .entry-body`, noteEntriesEl) : null;
+  const root = live || el("div");
+  if (!live) root.append(cleanNoteHtml(entry.body));
+  const lists = $$("ul[data-tasks]", root);
+  let list = lists[r.listIndex] || lists[lists.length - 1];
+  if (!list) { list = el("ul", { "data-tasks": "" }); root.append(list); }
+  const li = el("li", { "data-task": r.id }, r.task.subject || r.text);
+  list.insertBefore(li, list.children[r.itemIndex] || null);
+  if (live) {
+    if (live._linked) live._linked.set(r.id, { listIndex: r.listIndex, itemIndex: r.itemIndex, text: r.text });
+    decorateTaskItems(live);
+    commitEntry(entry, live);
+  } else {
+    entry.body = entryHtml(root);
+    save();
+  }
+}
+
+// The checkbox is drawn by CSS, so a press on it is found by position.
+function checkboxHit(e) {
+  const li = e.target && e.target.closest && e.target.closest(TASK_ITEMS);
+  return li && e.target === li && e.offsetX < 22 ? li : null;
+}
+function toggleItem(li) {
+  if (li.dataset.state !== "linked") return;
+  const task = taskById(li.getAttribute("data-task"));
+  if (!task) return;
+  toggleTask(task);
+  decorateTaskItems(li.closest(".entry-body"));
+}
+
+function openCardFromItem(li) {
+  const task = li && taskById(li.getAttribute("data-task"));
+  if (!task) return;
+  const body = li.closest(".entry-body");
+  const entry = body && entryFor(body);
+  if (entry) commitEntry(entry, body);
+  hideItemOpen();
+  openTaskModal(task);
+}
+
+// From a card's window back to the line it came from.
+function goToNoteItem(note, taskId) {
+  closeTaskModal();
+  if (openNoteId !== note.id) {
+    const found = findNoteCategory(note.categoryId);
+    if (found && found.folder.id !== state.activeFolderId) {
+      state.activeFolderId = found.folder.id;
+      save();
+      renderBoard();
+    }
+    if (!noteModal.hidden && !closeNoteModal()) return;
+    openNoteModal(note);
+  }
+  const li = noteEntriesEl.querySelector(`li[data-task="${CSS.escape(taskId)}"]`);
+  if (!li) return;
+  li.scrollIntoView({ block: "center" });
+  li.classList.add("flash");
+  setTimeout(() => li.classList.remove("flash"), 1600);
+}
+
+// One "open card" button for the whole window, placed over whichever linked
+// line the pointer is on. It lives outside the entry so it's never part of
+// the text.
+let itemOpenFor = null;
+const itemOpenBtn = el("button", {
+  class: "iconbtn item-open", title: "Open card (Alt+Enter)", "aria-label": "Open card", hidden: true,
+  onmousedown: e => e.preventDefault(),
+  onclick: () => openCardFromItem(itemOpenFor)
+}, svg("arrow-up-right", 13, 13));
+notePanel.append(itemOpenBtn);
+
+function hideItemOpen() {
+  itemOpenBtn.hidden = true;
+  itemOpenFor = null;
+}
+noteEntriesEl.addEventListener("mouseover", e => {
+  const li = e.target.closest && e.target.closest(TASK_ITEMS + '[data-state="linked"]');
+  if (!li) { hideItemOpen(); return; }
+  if (li === itemOpenFor && !itemOpenBtn.hidden) return;
+  const r = li.getBoundingClientRect();
+  const p = notePanel.getBoundingClientRect();
+  const line = parseFloat(getComputedStyle(li).lineHeight) || 23;
+  itemOpenBtn.style.top = Math.round(r.top - p.top + 1 + (line - 24) / 2) + "px";
+  itemOpenBtn.style.left = Math.round(r.right - p.left - 28) + "px";
+  itemOpenBtn.hidden = false;
+  itemOpenFor = li;
+});
+noteEntriesEl.addEventListener("scroll", hideItemOpen);
+noteEntriesEl.addEventListener("mouseleave", e => {
+  if (e.relatedTarget !== itemOpenBtn && !itemOpenBtn.contains(e.relatedTarget)) hideItemOpen();
+});
+itemOpenBtn.addEventListener("mouseleave", e => {
+  if (!itemOpenFor || !itemOpenFor.contains(e.relatedTarget)) hideItemOpen();
+});
 
 /* ---------- Search ---------- */
 function findNotes(query) {
@@ -5720,6 +6319,8 @@ function svg(name, w = 16, h = 16) {
     star: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
     alert: `<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
     eye: `<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>`,
+    note: `<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>`,
+    "arrow-up-right": `<line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>`,
     archive: `<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><line x1="10" y1="12" x2="14" y2="12"/>`,
     "eye-off": `<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M6.61 6.61A18.15 18.15 0 0 0 2 11s3.5 7 10 7a9.12 9.12 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>`
   };

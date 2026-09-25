@@ -193,6 +193,35 @@ Reordering is by drag and drop throughout: entries by the handle to their left
 on a category's header to put a note at its top), and categories by their
 header. The category dropdown in the note window moves a note too.
 
+**Task lists** turn lines in a note into cards. Start one with the task-list
+button in the toolbar or by typing `[] ` at the start of a line, or select lines
+you've already written (or a bulleted or numbered list) and press the button to
+convert them all at once. Each line becomes a card at the top of the folder's
+first column, in the list's order, when you finish it: on `Enter`, or when you
+leave the entry. A line still being typed has a dashed box and no card yet.
+
+The card holds the text, the done state and the due date; the line in the note
+only points at it and shows it, so the two can't disagree. Tick a line and the
+card is done; complete the card on the board and the line is ticked. Edit the
+text in either place and both change. A due date shows beside the line, red
+with the alert icon when it's within three days. Lines are plain text, like a
+card's title.
+
+Hover a line for a small arrow, or press `Alt+Enter` in it, to open its card on
+top of the note, which is where you set a due date, a description or a star.
+The card shows **From note: …** in its window, and a small note icon on the
+board; clicking the link opens the note at that line.
+
+Removing a line from the note deletes its card when you leave the entry, with
+Undo, which brings back the card and the line. While you're still typing,
+`Ctrl+Z` gets the line back without the board ever noticing, and cutting a line
+and pasting it elsewhere keeps its card. A pasted *copy* of a line becomes plain
+text, so one card never has two lines. If the card is deleted on the board, or
+cleared as an old completed task, its line stays in the note as plain text: the
+note is still a record of what was said. Deleting or archiving a whole note, or
+one of its entries, leaves the cards on the board. A private note, or a note in
+a private category, makes private cards.
+
 **Archive** in the note window takes a note out of the list without deleting
 it. Archived notes collect in an **Archived** section at the bottom of the pane,
 still openable and still searchable; **Unarchive** puts one back where it was.
@@ -257,6 +286,8 @@ this export is the only copy of your data that isn't in the database.
 | `Ctrl+B` / `Ctrl+I` | Bold / italic, inside a task description |
 | `Ctrl+Enter` | Submit from the quick-add description field; in a note, add an entry |
 | `Ctrl+K` | In a note, link the selected text |
+| `[]` + `Space` | In a note, start a task list |
+| `Alt+Enter` | On a task-list line, open its card |
 | `Tab` / `Shift+Tab` | In a note's list, indent / outdent |
 
 On a Mac use `⌘` — every shortcut accepts either modifier. Note that macOS
@@ -316,7 +347,10 @@ notes            id, user_id, category_id, title, private, archived,
 note_entries     id, user_id, note_id, body, position, created_at, updated_at
 ```
 
-An entry's `body` is the sanitised HTML described under Notes. Images in it are
+An entry's `body` is the sanitised HTML described under Notes. A task list is
+`<ul data-tasks>` with `<li data-task="<card id>">` lines; the id is the only
+link between a line and its card, and everything a line displays (ticked, due
+date) is read from the card when the note is drawn. Images in it are
 `<img data-sb="<uuid>.png">`, a reference into the bucket and never a URL, since
 signed URLs expire. An entry's `created_at` is the timestamp it shows, and
 reordering entries changes only `position`.
