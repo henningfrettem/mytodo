@@ -3127,7 +3127,14 @@ function saveCategoryFromModal() {
   const nowPrivate = categoryPrivateInput.checked;
   let changed = false;
 
-  if (newName && newName !== cat.name) { cat.name = newName; changed = true; }
+  if (newName && newName !== cat.name) {
+    if (categoryModalCtx.kind === "notes" && isInboxName(newName)) {
+      toast(`There's already a ${NOTES_INBOX} category \u2014 pick another name.`, { duration: 3000 });
+      return;
+    }
+    cat.name = newName;
+    changed = true;
+  }
   if (nowPrivate !== !!cat.private) {
     cat.private = nowPrivate;
     // Turning privacy on must hide it immediately, and turning it off should
@@ -4258,7 +4265,6 @@ const noteLinkInput = $("#note-link-input");
 
 let notesAvailable = true;   // false when the notes tables don't exist yet
 let openNoteId = null;
-let lastNoteCatId = null;    // where New note lands
 let notesDrag = null;        // { kind: "note" | "ncat" | "entry", id }
 let notesRenderedFor = null; // folder id the pane was last drawn for
 let archiveOpen = false;
@@ -4286,6 +4292,26 @@ const closedNoteCats = new Set(readStored(NOTES_CLOSED_KEY, []));
 function persistClosedNoteCats() { writeStored(NOTES_CLOSED_KEY, [...closedNoteCats]); }
 
 /* Lookups */
+// Every folder has a "Notes" category, where New note always puts a note.
+// It's found by name, which works because it can't be renamed, and no other
+// category may take the name.
+const NOTES_INBOX = "Notes";
+const isInboxName = name => (name || "").trim().toLowerCase() === NOTES_INBOX.toLowerCase();
+
+function inboxCategory(folder, { create = false } = {}) {
+  const cats = noteCategoriesOf(folder);
+  let cat = cats.find(c => isInboxName(c.name)) || null;
+  if (!cat && create && folder) {
+    cat = { id: uuid(), name: NOTES_INBOX, private: false };
+    cats.unshift(cat);
+    save();
+  }
+  return cat;
+}
+function isInbox(folder, cat) {
+  return !!cat && inboxCategory(folder) === cat;
+}
+
 function noteCategoriesOf(folder) {
   if (!folder) return [];
   if (!folder.noteCategories) folder.noteCategories = [];
@@ -4587,10 +4613,8 @@ function renderNotes() {
     return;
   }
   const folder = currentFolder();
+  inboxCategory(folder, { create: true });
   const cats = noteCategoriesOf(folder);
-  if (!cats.length) {
-    notesList.append(el("div", { class: "notes-empty" }, "No notes in this folder yet."));
-  }
   for (const cat of cats) notesList.append(renderNoteCategory(folder, cat));
 
   const catIds = new Set(cats.map(c => c.id));
@@ -4660,7 +4684,7 @@ function renderNoteCategory(folder, cat) {
         class: "iconbtn nc-act", title: `New note in ${cat.name}`, "aria-label": `New note in ${cat.name}`,
         onclick: e => { e.stopPropagation(); newNote(cat); }
       }, svg("plus", 13, 13)),
-      el("button", {
+      isInbox(folder, cat) ? null : el("button", {
         class: "iconbtn nc-act", title: "Category settings", "aria-label": "Category settings",
         onclick: e => { e.stopPropagation(); openNoteCategoryModal(folder, cat); }
       }, svg("gear", 13, 13))
@@ -4799,7 +4823,6 @@ function moveNote(noteId, catId, anchorId, where) {
     at = first < 0 ? state.notes.length : first;
   }
   state.notes.splice(at, 0, note);
-  if (!note.archived) lastNoteCatId = catId;
   if (closedNoteCats.delete(catId)) persistClosedNoteCats();
   save();
   renderNotes();
@@ -4831,9 +4854,12 @@ notesAddCatBtn.addEventListener("click", () => {
     input.remove();
     notesAddCatBtn.hidden = false;
     if (!keep || !name) return;
+    if (isInboxName(name)) {
+      toast(`There's already a ${NOTES_INBOX} category \u2014 pick another name.`, { duration: 3000 });
+      return;
+    }
     const cat = { id: uuid(), name, private: false };
     noteCategoriesOf(currentFolder()).push(cat);
-    lastNoteCatId = cat.id;
     save();
     renderNotes();
     notesList.scrollTop = notesList.scrollHeight;
@@ -4875,6 +4901,7 @@ const NOTE_PRIVATE_HELP = "Blur the note titles in the list. Always starts blurr
   + "opens; the eye on the category reveals it for this session.";
 
 function openNoteCategoryModal(folder, cat) {
+  if (isInbox(folder, cat)) return;
   categoryModalCtx = { folder, cat, kind: "notes" };
   categoryNameInput.value = cat.name;
   categoryPrivateInput.checked = !!cat.private;
@@ -4915,13 +4942,10 @@ function newNote(cat) {
     toast("Notes need the new tables — run supabase/schema.sql in Supabase first.");
     return;
   }
-  const folder = currentFolder();
-  const cats = noteCategoriesOf(folder);
-  if (!cat) cat = cats.find(c => c.id === lastNoteCatId) || cats[0];
-  if (!cat) {
-    cat = { id: uuid(), name: "Notes", private: false };
-    cats.push(cat);
-  }
+  // The + on a category's header passes that category; everything else,
+  // the button and Shift+N, lands at the top of Notes.
+  if (!cat) cat = inboxCategory(currentFolder(), { create: true });
+  if (!cat) return;
   const now = new Date().toISOString();
   const note = {
     id: uuid(), categoryId: cat.id, title: "", private: false,
@@ -4931,7 +4955,6 @@ function newNote(cat) {
   const first = state.notes.findIndex(n => n.categoryId === cat.id);
   if (first < 0) state.notes.push(note);
   else state.notes.splice(first, 0, note);
-  lastNoteCatId = cat.id;
   if (closedNoteCats.delete(cat.id)) persistClosedNoteCats();
   save();
   renderNotes();
@@ -4978,7 +5001,6 @@ function markActiveNoteRow() {
 function openNoteModal(note, { fresh = false } = {}) {
   if (!noteModal.hidden && openNoteId && openNoteId !== note.id && !closeNoteModal()) return;
   openNoteId = note.id;
-  if (!note.archived) lastNoteCatId = note.categoryId;
   lastEntryBody = null;
   noteHeading.value = note.title || "";
   noteHeading.classList.remove("invalid");
@@ -5418,7 +5440,6 @@ noteCategorySel.addEventListener("change", () => {
   note.categoryId = catId;
   const first = state.notes.findIndex(n => n.categoryId === catId);
   state.notes.splice(first < 0 ? state.notes.length : first, 0, note);
-  if (!note.archived) lastNoteCatId = catId;
   save();
   renderNotes();
 });
@@ -5439,7 +5460,6 @@ noteArchiveBtn.addEventListener("click", () => {
   if (note.archived) {
     note.archived = false;
     note.archivedAt = null;
-    lastNoteCatId = note.categoryId;
     save();
     paintNoteArchived(note);
     renderNotes();

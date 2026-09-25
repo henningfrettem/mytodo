@@ -165,8 +165,10 @@ line in the list, showing its heading, how many entries it has when there's more
 than one, and when the latest entry was written. Click a category to fold it.
 
 **New note** at the top of the pane (or `Shift+N`) opens a new note in a large
-window, in whichever category you used last. The `+` on a category's header
-picks one instead. Every note needs a heading: closing a note that has text but
+window, at the top of the **Notes** category. Every folder has one, created
+automatically; it can be dragged to any position in the list, but it can't be
+renamed, deleted or made private, and no other category can take its name. The
+`+` on another category's header puts a new note there instead. Every note needs a heading: closing a note that has text but
 no heading is refused until you give it one, and a new note closed with nothing
 written in it is simply discarded.
 
