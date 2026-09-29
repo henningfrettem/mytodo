@@ -69,6 +69,7 @@ files, by name and nothing else, into `dist/`, and writes the site's
 | `SUPABASE_URL` | `https://<project>.supabase.co` |
 | `SUPABASE_PUBLISHABLE_KEY` | the publishable key, `sb_publishable_…` |
 | `SUPABASE_SCHEMA` | optional, `todo` by default |
+| `SUPABASE_GOOGLE` | optional: `1` shows *Continue with Google* (see below) |
 
 These two are public by design: every visitor's browser receives them, and
 row-level security is what keeps the data private. The build refuses a secret
@@ -94,6 +95,30 @@ To set it up:
    certificate follows by itself.
 
 After that, every push to the production branch (`main`) goes live.
+
+### Signing in with Google
+
+On the hosted site the sign-in screen can offer **Continue with Google**, next
+to email and password. It uses Supabase's Google provider: the browser goes to
+Google, then to Supabase, and comes back signed in. The return is a one-time
+code only that browser can redeem (PKCE), never tokens in the address bar. A
+Google account whose email matches an existing user signs in as that user, so
+the data is all there; with new sign-ups off, any other Google account is
+turned away with a message saying so. It can't work from `file://`, since
+Google has to send the browser back to a web address.
+
+To switch it on:
+
+1. **Google Cloud Console**: create a project, set up the consent screen (only
+   name, email and profile are asked for, so Google doesn't review it; keep it
+   in *Testing* with yourself as the test user, or publish it), and create an
+   OAuth client of type *Web application* whose authorized redirect URI is the
+   callback URL Supabase shows for its Google provider.
+2. **Supabase → Authentication → Sign In / Providers → Google**: turn it on
+   and paste in the client ID and secret. The secret stays in Supabase.
+3. **Supabase → Authentication → URL Configuration → Redirect URLs**: add the
+   site's address followed by `/**`. The Site URL can stay as it is.
+4. **Vercel**: set `SUPABASE_GOOGLE` to `1` and redeploy.
 
 ## Setting up a fresh project
 
