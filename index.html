@@ -2745,7 +2745,8 @@ async function selectAll(table, ...orderBy) {
   }
 }
 
-async function loadState() {
+// Every row the user has, straight from the database, per table.
+async function fetchRows() {
   const [f, c, t, nc, nn, ne, ek] = await Promise.all([
     selectAll("folders", "position"),
     selectAll("categories", "position"),
@@ -2765,17 +2766,26 @@ async function loadState() {
   notesAvailable = !noteErr;
   entryKindsAvailable = notesAvailable && !ek.error;
   if (noteErr) console.warn("Notes unavailable:", noteErr.error.message);
-  const noteCatRows = notesAvailable ? nc.data : [];
+  return {
+    folders: f.data, categories: c.data, tasks: t.data,
+    note_categories: notesAvailable ? nc.data : [],
+    notes: notesAvailable ? nn.data : [],
+    note_entries: notesAvailable ? ne.data : []
+  };
+}
 
-  const folders = f.data.map(row => ({
+// The app's data from rows ordered as the database orders them: by position
+// within their parent. Takes database rows or the app's own (rowsFromState).
+function stateFromRows(rows, preferFolderId) {
+  const folders = rows.folders.map(row => ({
     id: row.id,
     name: row.name,
-    categories: c.data.filter(x => x.folder_id === row.id)
+    categories: rows.categories.filter(x => x.folder_id === row.id)
       .map(x => ({ id: x.id, name: x.name, private: !!x.private })),
-    noteCategories: noteCatRows.filter(x => x.folder_id === row.id)
+    noteCategories: rows.note_categories.filter(x => x.folder_id === row.id)
       .map(x => ({ id: x.id, name: x.name, private: !!x.private }))
   }));
-  const tasks = t.data.map(row => ({
+  const tasks = rows.tasks.map(row => ({
     id: row.id,
     folderId: row.folder_id,
     categoryId: row.category_id,
@@ -2791,7 +2801,7 @@ async function loadState() {
 
   // Rows arrive ordered by note and position, so each list is already in order.
   const entriesByNote = new Map();
-  for (const row of notesAvailable ? ne.data : []) {
+  for (const row of rows.note_entries) {
     if (!entriesByNote.has(row.note_id)) entriesByNote.set(row.note_id, []);
     entriesByNote.get(row.note_id).push({
       id: row.id,
@@ -2800,7 +2810,7 @@ async function loadState() {
       createdAt: row.created_at
     });
   }
-  const notes = (notesAvailable ? nn.data : []).map(row => ({
+  const notes = rows.notes.map(row => ({
     id: row.id,
     categoryId: row.category_id,
     title: row.title || "",
@@ -2811,12 +2821,16 @@ async function loadState() {
     entries: entriesByNote.get(row.id) || []
   }));
 
-  const remembered = localStorage.getItem("todo.activeFolderId");
-  const activeFolderId = folders.some(x => x.id === remembered)
-    ? remembered
+  const wanted = preferFolderId || localStorage.getItem("todo.activeFolderId");
+  const activeFolderId = folders.some(x => x.id === wanted)
+    ? wanted
     : (folders[0] && folders[0].id) || null;
 
   return { folders, tasks, notes, activeFolderId };
+}
+
+async function loadState() {
+  return stateFromRows(await fetchRows());
 }
 
 /* ---------- Writing ---------- */
@@ -2824,12 +2838,12 @@ async function loadState() {
 // The database is written on a timer and never on the render path, so typing,
 // dragging and completing never wait for the network.
 
-function rowsFromState() {
-  const folders = state.folders.map((f, i) => ({
+function rowsFromState(s = state) {
+  const folders = s.folders.map((f, i) => ({
     id: f.id, user_id: userId, name: f.name, position: i
   }));
   const categories = [];
-  state.folders.forEach(f => (f.categories || []).forEach((c, i) => {
+  s.folders.forEach(f => (f.categories || []).forEach((c, i) => {
     categories.push({
       id: c.id, user_id: userId, folder_id: f.id,
       name: c.name, private: !!c.private, position: i
@@ -2838,7 +2852,7 @@ function rowsFromState() {
   const catFolder = new Map(categories.map(c => [c.id, c.folder_id]));
   const perCat = new Map();
   const tasks = [];
-  for (const t of state.tasks) {
+  for (const t of s.tasks) {
     if (!catFolder.has(t.categoryId)) continue; // orphaned by a deleted category
     const i = perCat.get(t.categoryId) || 0;
     perCat.set(t.categoryId, i + 1);
@@ -2859,7 +2873,7 @@ function rowsFromState() {
   }
 
   const noteCategories = [];
-  state.folders.forEach(f => (f.noteCategories || []).forEach((c, i) => {
+  s.folders.forEach(f => (f.noteCategories || []).forEach((c, i) => {
     noteCategories.push({
       id: c.id, user_id: userId, folder_id: f.id,
       name: c.name, private: !!c.private, position: i
@@ -2869,7 +2883,7 @@ function rowsFromState() {
   const perNoteCat = new Map();
   const notes = [];
   const noteEntries = [];
-  for (const nt of state.notes || []) {
+  for (const nt of s.notes || []) {
     if (!noteCatIds.has(nt.categoryId)) continue; // orphaned by a deleted category
     const i = perNoteCat.get(nt.categoryId) || 0;
     perNoteCat.set(nt.categoryId, i + 1);
@@ -2946,6 +2960,7 @@ async function flushNow() {
     }
 
     syncedSnapshot = next;
+    syncGen++;
     dirty = false;
     setFileStatus("saved");
     hideErrorBanner();
@@ -2957,10 +2972,282 @@ async function flushNow() {
   } finally {
     syncing = false;
     if (syncQueued) { syncQueued = false; scheduleSync(); }
+    // Word of changes that came in during the save is weighed now, against
+    // what was just saved.
+    if (remoteEvents.length) checkRemoteEvents();
+    if (pullAgain) { pullAgain = false; schedulePull(); }
   }
 }
 
 const scheduleSync = debounce(flushNow, 800);
+
+/* ---------- Changes from other devices ---------- */
+// Another device's changes arrive as they happen (Supabase Realtime), and in
+// any case whenever the app comes back to the screen, since a phone drops the
+// connection in the background. Either way the app then reads everything
+// again and merges three ways, row by row:
+//   - a row changed here and not yet saved keeps this device's version, and
+//     is saved as usual;
+//   - every other row takes what the database has now, including rows added
+//     or deleted elsewhere.
+// The objects already in memory are updated in place rather than replaced,
+// because open windows (a card, a note's entries, a drawing) hold on to them.
+// Nothing being typed is redrawn under the cursor.
+let syncGen = 0;            // finished saves; a read that spans one is stale
+let pulling = false, pullAgain = false;
+let liveChannel = null, liveStatus = "", liveJoined = false;
+const remoteEvents = [];
+
+const TS_COLS = /_at$/;
+function sameRow(a, b) {
+  if (!a || !b) return a === b;
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const x = a[k] ?? null, y = b[k] ?? null;
+    if (x === y) continue;
+    // The database writes times as +00:00, this app as Z: same instant.
+    if (TS_COLS.test(k) && x && y && Date.parse(x) === Date.parse(y)) continue;
+    return false;
+  }
+  return true;
+}
+
+// Row sets per table: this device's pending changes over the database's.
+function mergeRows(base, local, remote) {
+  const out = {}, changed = new Set();
+  for (const t of SYNC_TABLES) {
+    const byId = rows => new Map((rows || []).map(r => [r.id, r]));
+    const B = byId(base[t]), L = byId(local[t]), R = byId(remote[t]);
+    out[t] = [];
+    for (const id of new Set([...B.keys(), ...L.keys(), ...R.keys()])) {
+      const l = L.get(id);
+      const pick = sameRow(B.get(id), l) ? R.get(id) : l;
+      if (!sameRow(pick, l)) changed.add(id);
+      if (pick) out[t].push(pick);
+    }
+  }
+  return { rows: out, changed };
+}
+
+// Back into the order the database returns them in, which stateFromRows expects.
+function sortRows(rows) {
+  const by = (...keys) => (a, b) => {
+    for (const k of keys) {
+      const x = a[k], y = b[k];
+      if (x !== y) return x < y ? -1 : 1;
+    }
+    return 0;
+  };
+  return {
+    folders: rows.folders.slice().sort(by("position", "id")),
+    categories: rows.categories.slice().sort(by("position", "id")),
+    tasks: rows.tasks.slice().sort(by("category_id", "position", "id")),
+    note_categories: rows.note_categories.slice().sort(by("position", "id")),
+    notes: rows.notes.slice().sort(by("category_id", "position", "id")),
+    note_entries: rows.note_entries.slice().sort(by("note_id", "position", "id"))
+  };
+}
+
+// Fresh objects, but each one that already exists keeps its identity.
+function adopt(oldList, freshList, nested) {
+  const old = new Map((oldList || []).map(x => [x.id, x]));
+  return freshList.map(f => {
+    const o = old.get(f.id);
+    if (!o) return f;
+    for (const k of nested || []) f[k] = adopt(o[k], f[k]);
+    return Object.assign(o, f);
+  });
+}
+
+async function pullRemote() {
+  if (!sb || !userId || !state) return;
+  if (pulling || syncing) { pullAgain = true; return; }
+  pulling = true;
+  try {
+    const gen = syncGen;
+    const raw = await fetchRows();
+    // A save that finished or started while reading makes the read unsafe to
+    // merge against: it may be from before that save. Read again after it.
+    if (syncing || gen !== syncGen) { pullAgain = true; return; }
+    const remote = rowsFromState(stateFromRows(raw, state.activeFolderId));
+    const local = rowsFromState();
+    const { rows, changed } = mergeRows(syncedSnapshot, local, remote);
+    syncedSnapshot = remote;
+    if (changed.size) {
+      const fresh = stateFromRows(sortRows(rows), state.activeFolderId);
+      state.folders = adopt(state.folders, fresh.folders, ["categories", "noteCategories"]);
+      state.tasks = adopt(state.tasks, fresh.tasks);
+      state.notes = adopt(state.notes, fresh.notes, ["entries"]);
+      state.activeFolderId = fresh.activeFolderId;
+      noteLinkIndex = null;
+      showRemoteChanges(changed);
+    }
+    // What's still only here goes up as usual.
+    const now = rowsFromState();
+    if (SYNC_TABLES.some(t => {
+      const d = diffRows(remote[t], now[t]);
+      return d.upserts.length || d.deletes.length;
+    })) {
+      dirty = true;
+      scheduleSync();
+    }
+  } catch (e) {
+    console.warn("Couldn't read changes from other devices:", e);
+  } finally {
+    pulling = false;
+    if (pullAgain) { pullAgain = false; schedulePull(); }
+  }
+}
+const schedulePull = debounce(pullRemote, 400);
+
+let heldChanges = null, heldField = null; // waiting for a field on the board to be left
+function showRemoteChanges(changed) {
+  if (heldChanges) {
+    for (const id of changed) heldChanges.add(id);
+    if (heldField.isConnected && document.activeElement === heldField) return;
+    // Left without a blur (the field was redrawn away): carry on now.
+    changed = heldChanges;
+    heldChanges = heldField = null;
+  }
+  // Something being typed in on the board or in the notes pane isn't
+  // redrawn away; the rest waits until it's left.
+  const a = document.activeElement;
+  if (isTypingTarget(a) && (boardEl.contains(a) || notesPane.contains(a))) {
+    heldChanges = new Set(changed);
+    heldField = a;
+    a.addEventListener("blur", () => setTimeout(() => {
+      if (!heldChanges) return;
+      const held = heldChanges;
+      heldChanges = heldField = null;
+      showRemoteChanges(held);
+    }, 0), { once: true });
+    return;
+  }
+  // Where each column was scrolled to, and which completed lists were open.
+  const scrolls = new Map(), open = new Set();
+  for (const col of $$(".column", boardEl)) {
+    const id = col.dataset.categoryId;
+    scrolls.set(id, ($(".column-body", col) || {}).scrollTop || 0);
+    if ($(".completed-section.open", col)) open.add(id);
+  }
+  const boardX = boardEl.scrollLeft;
+  renderBoard();
+  renderNotes();
+  boardEl.scrollLeft = boardX;
+  for (const col of $$(".column", boardEl)) {
+    const id = col.dataset.categoryId;
+    const body = $(".column-body", col);
+    if (body) body.scrollTop = scrolls.get(id) || 0;
+    const section = $(".completed-section", col);
+    if (section && open.has(id)) {
+      section.classList.add("open");
+      const t = $(".completed-toggle", section);
+      if (t) t.setAttribute("aria-expanded", "true");
+    }
+  }
+  if (searchOpen()) renderSearch({ keepIndex: true });
+
+  // An open card: its fields follow, except the one being typed in.
+  const task = !taskModal.hidden && openTaskId ? state.tasks.find(x => x.id === openTaskId) : null;
+  if (task && changed.has(task.id)) {
+    const active = document.activeElement;
+    if (active !== taskSubject) { taskSubject.value = task.subject || ""; autoResizeSubject(); }
+    if (active !== taskDesc) {
+      taskDesc.value = task.description || "";
+      if (taskMode === "preview") renderTaskPreview();
+    }
+    if (active !== taskDue) taskDue.value = task.dueDate || "";
+    if (active !== taskCategory) populateCategorySelect(taskCategory, task.categoryId);
+    updateTaskMeta(task);
+    updateModalStar(task);
+    updateModalPrivate(task);
+  }
+
+  // An open note: redrawn when it changed. While something in it is being
+  // typed in, that waits until the typing stops; an open drawing redraws the
+  // note itself when it closes.
+  const note = openNote();
+  if (note && !noteModal.hidden && (changed.has(note.id) || note.entries.some(e => changed.has(e.id))
+      || [...changed].some(id => noteEntriesEl.querySelector(`[data-entry-id="${CSS.escape(id)}"]`)))) {
+    fillNoteCategorySelect(note);
+    paintNotePrivate(note);
+    paintNoteArchived(note);
+    updateNoteMeta(note);
+    if (!drawing) redrawNoteWhenIdle();
+  }
+}
+
+let noteRedrawHeld = false;
+function redrawNoteWhenIdle() {
+  const typing = () => noteModal.contains(document.activeElement) && isTypingTarget(document.activeElement);
+  const redraw = () => {
+    const note = openNote();
+    if (!note || noteModal.hidden || drawing) return;
+    noteHeading.value = note.title || "";
+    autoSizeNoteHeading();
+    const y = noteEntriesEl.scrollTop;
+    renderNoteEntries(note);
+    noteEntriesEl.scrollTop = y;
+  };
+  if (!typing()) { noteRedrawHeld = false; redraw(); return; }
+  if (noteRedrawHeld) return;
+  noteRedrawHeld = true;
+  const check = () => setTimeout(() => {
+    if (noteModal.hidden) { noteRedrawHeld = false; return; }
+    if (typing()) { noteModal.addEventListener("focusout", check, { once: true }); return; }
+    noteRedrawHeld = false;
+    redraw();
+  }, 0);
+  noteModal.addEventListener("focusout", check, { once: true });
+}
+
+// Realtime reports each row written, this device's own writes included.
+// Those match what was just saved and are let go; anything else means
+// another device, and a read.
+function onRemoteEvent(p) {
+  remoteEvents.push(p);
+  if (!syncing) checkRemoteEvents();
+}
+const checkRemoteEvents = debounce(() => {
+  if (syncing || !state) return; // the save weighs them when it's done
+  const events = remoteEvents.splice(0);
+  const foreign = events.some(p => {
+    const known = syncedSnapshot[p.table] || [];
+    if (p.eventType === "DELETE") return known.some(r => r.id === (p.old && p.old.id));
+    const row = p.new && known.find(r => r.id === p.new.id);
+    if (!row) return true;
+    const theirs = {};
+    for (const k of Object.keys(row)) theirs[k] = p.new[k];
+    return !sameRow(row, theirs);
+  });
+  if (foreign) schedulePull();
+}, 150);
+
+function startLive(schema) {
+  if (liveChannel || !sb || typeof sb.channel !== "function") return;
+  liveChannel = sb.channel("todo-changes")
+    .on("postgres_changes", { event: "*", schema }, onRemoteEvent)
+    .subscribe(status => {
+      liveStatus = status;
+      if (status !== "SUBSCRIBED") return;
+      // Joining again after a dropped connection: whatever happened while it
+      // was down only shows up by reading.
+      if (liveJoined) schedulePull();
+      liveJoined = true;
+    });
+}
+
+// Back on screen after a while (a phone reopening the app, a window restored):
+// catch up, since the connection may have been asleep.
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (hiddenAt && Date.now() - hiddenAt > 5000) schedulePull();
+});
+window.addEventListener("online", () => schedulePull());
+// Without a live connection, look for changes once a minute while on screen.
+setInterval(() => {
+  if (state && !document.hidden && liveStatus !== "SUBSCRIBED") schedulePull();
+}, 60000);
 
 /* ---------- Data model ---------- */
 function defaultData() {
@@ -6941,6 +7228,7 @@ async function startApp(user) {
     welcome.hidden = true;
     appRoot.hidden = false;
     fileName.textContent = user.email || "signed in";
+    startLive((loadConfig() || {}).schema || "todo");
     renderBoard();
     updateFolderLabel();
     setFileStatus("saved");

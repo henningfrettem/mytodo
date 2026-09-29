@@ -180,9 +180,9 @@ create policy notes_owner           on todo.notes           for all using (user_
 create policy note_entries_owner    on todo.note_entries    for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- ---------- Realtime ----------
--- Not needed while one machine is the source of truth; harmless to enable now
--- so a second device later is a client change only. The publication is shared
--- with every other project on this instance, hence the membership check.
+-- The app listens for changes to these tables, so an edit on one device shows
+-- on the others without a reload. The publication is shared with every other
+-- project on this instance, hence the membership check.
 
 do $$
 declare t text;

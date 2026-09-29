@@ -399,6 +399,31 @@ inside the debounce window prompts before leaving.
 
 The dot in the top right shows the state — saving, saved, or error.
 
+### Changes from other devices
+
+Open on the desktop and the phone at once, each shows the other's changes
+without a reload. The app listens for changes to its tables (Supabase
+Realtime; `supabase/schema.sql` adds them to the `supabase_realtime`
+publication), and also catches up whenever it comes back on screen after a
+few seconds away, since a phone drops the connection in the background. Its
+own writes come back over the same connection too; those match what it just
+saved and are ignored.
+
+Either way it then reads everything again and merges three ways, row by row,
+using the snapshot of what it last saved: a row changed on this device and not
+yet saved keeps this device's version (and is saved as usual), and every other
+row takes what the database has, including rows added or deleted elsewhere.
+So the same card edited on both at once ends with whichever saved last.
+
+The objects in memory are updated in place, so an open card or note keeps
+working, and nothing being typed is redrawn under the cursor: an open card's
+other fields follow, a note being typed in is redrawn when the typing stops,
+and the board keeps its scroll positions and open "Completed" lists.
+
+Requests that Supabase's database turns away because its clock lags the
+sign-in service's by a second or two ("JWT issued at future") are sent again
+after a moment.
+
 ## Your data
 
 Everything lives in your Supabase project, under your user id, behind row-level
