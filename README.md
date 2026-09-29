@@ -231,8 +231,9 @@ window, and **Done** or `Esc` goes back. Esc steps out one thing at a time:
 first the text being typed, then the selection, then the drawing, and only
 then the note. A new mind map opens with the cursor already in its centre.
 Drawings save like everything else, search finds the words in them, and an
-empty diagram or a mind map with no words is dropped when the note closes. The
-editor is described under *Diagrams and mind maps* below.
+empty diagram or a mind map with no words is dropped when the note closes. A
+drawing can be copied out as an image or as SVG, for Confluence and the like.
+The editor is described under *Diagrams and mind maps* below.
 
 **Archive** in the note window takes a note out of the list without deleting
 it. Archived notes collect in an **Archived** section at the bottom of the pane,
@@ -415,6 +416,25 @@ and scroll to zoom. To move around, drag with Ctrl held (from anywhere, even
 on a shape), with Space held, or with the right mouse button; the canvas shows
 this in its corner. Undo and redo are buttons (Delete, Ctrl+Z and Ctrl+Y work
 too).
+
+**Copying out.** The last button in the zoom bar copies the whole drawing
+(folded-away branches stay out), cropped to what's there:
+
+- **Copy as image** puts a PNG on the clipboard, at twice the size for
+  sharpness, on white. It pastes anywhere that takes a picture: Confluence
+  pages and whiteboards, Teams, Slack, email, Word, PowerPoint.
+- **Copy as SVG** puts the same picture on the clipboard as SVG markup, as
+  text and, where the browser offers it, as an SVG image. It's for apps that
+  read SVG, such as Figma, or for saving as an `.svg` file: it stays sharp at
+  any size and its words stay text.
+
+The copy is its own clean drawing rather than a snapshot of the editor: the
+editor shows its text with HTML, which only a browser can display, so the copy
+writes real SVG text instead, with each box's lines broken exactly where the
+page breaks them, and colours and arrowheads written onto every shape and line
+so nothing depends on the page's styles. In Confluence it lands as a picture,
+not as whiteboard shapes and connectors: Confluence only builds those from its
+own tools or from a Miro, Mural or FigJam import.
 
 It's a plain script rather than a module, for the same file:// reason as the
 bundled library below, and it knows nothing about Supabase: it's handed a

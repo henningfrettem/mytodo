@@ -10,6 +10,7 @@
  *   c.getData(); c.setData(data); c.fit(); c.tidyAll(); c.refresh();
  *   c.flush();    // finish any typing in progress, so getData() has it
  *   c.destroy();
+ *   c.exportSVG() // a self-contained SVG for other apps: real text, no HTML
  *   TodoCanvas.previewMarkup(data)   // a still picture of a drawing, as SVG markup
  *
  * startTyping: a new mind map whose central topic is empty opens with the
@@ -406,6 +407,7 @@ const ICON = {
   arrowNone: I('<path d="M4 12h16"/>'),
   flip: I('<path d="M7 7h11l-3-3M17 17H6l3 3"/>'),
   label: I('<path d="M5 18 10 6h1l5 12M7 14h7"/><path d="M18 9v9"/>'),
+  copy: I('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'),
   tidy: I('<rect x="3" y="10" width="6" height="4" rx="1"/><rect x="15" y="4" width="6" height="4" rx="1"/>'
     + '<rect x="15" y="16" width="6" height="4" rx="1"/><path d="M9 12h3M12 6v12M12 6h3M12 18h3"/>'),
   fold: I('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/>'),
@@ -426,6 +428,14 @@ function injectStyles() {
   .tc-root.tc-placing .tc-svg { cursor: crosshair; }
   .tc-root.tc-pan-ready .tc-svg, .tc-root.tc-pan-ready .tc-svg * { cursor: grab !important; }
   .tc-root.tc-panning .tc-svg, .tc-root.tc-panning .tc-svg * { cursor: grabbing !important; }
+  .tc-menu { position: absolute; right: 12px; bottom: 58px; flex-direction: column; align-items: stretch;
+    min-width: 170px; }
+  .tc-menu button { display: block; width: 100%; padding: 7px 10px; border: 0; border-radius: 5px;
+    background: transparent; font: inherit; font-size: 13px; text-align: left; color: #2f2a22; cursor: pointer; }
+  .tc-menu button:hover { background: var(--paper-2, #ece7db); }
+  .tc-flash { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 4;
+    max-width: calc(100% - 24px); padding: 6px 12px; border-radius: 6px; background: #141108; color: #faf8f3;
+    font-size: 12.5px; text-align: center; pointer-events: none; }
   .tc-help { position: absolute; left: 12px; bottom: 14px; max-width: calc(100% - 230px); font-size: 11px;
     line-height: 1.4; color: #8a8070; pointer-events: none; user-select: none; }
   .tc-node { cursor: move; }
@@ -569,7 +579,22 @@ function create(container, opts) {
     zoomLevel,
     btn(ICON.zoomIn, "Zoom in", () => zoomCentre(1.25)),
     sep(),
-    btn(ICON.fit, "Fit to screen", () => fit()));
+    btn(ICON.fit, "Fit to screen", () => fit()),
+    sep(),
+    btn(ICON.copy, "Copy as an image or as SVG", () => { copyMenu.hidden = !copyMenu.hidden; }));
+  const copyMenu = htmlEl("div", { class: "tc-bar tc-menu", hidden: true },
+    htmlEl("button", { type: "button", onmousedown: e => e.preventDefault(), onclick: () => copyOut("png") },
+      "Copy as image"),
+    htmlEl("button", { type: "button", onmousedown: e => e.preventDefault(), onclick: () => copyOut("svg") },
+      "Copy as SVG"));
+  const flashEl = htmlEl("div", { class: "tc-flash", hidden: true, role: "status" });
+  let flashTimer = 0;
+  function flash(msg) {
+    flashEl.textContent = msg;
+    flashEl.hidden = false;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { flashEl.hidden = true; }, 2200);
+  }
 
   const ctx = htmlEl("div", { class: "tc-bar tc-ctx", hidden: true });
   let ctxKind = null;
@@ -582,7 +607,7 @@ function create(container, opts) {
   const help = htmlEl("div", { class: "tc-help" },
     "Move around: Ctrl+drag, Space+drag or right-drag \u00b7 Zoom: scroll");
 
-  root.append(svg, emptyHint, help, tools, zoomBar, ctx, labelInput);
+  root.append(svg, emptyHint, help, tools, zoomBar, copyMenu, flashEl, ctx, labelInput);
   container.append(root);
 
   /* ---------- lookups and geometry ---------- */
@@ -1906,6 +1931,10 @@ function create(container, opts) {
       e.stopPropagation();
       if (one.parent) addSiblingAfter(one);
       else startEditing(one);
+    } else if (e.key === "Escape" && !copyMenu.hidden) {
+      e.preventDefault();
+      e.stopPropagation();
+      copyMenu.hidden = true;
     } else if (e.key === "Escape") {
       if (tool || selNodes.size || selLink) {
         e.preventDefault();
@@ -1918,6 +1947,7 @@ function create(container, opts) {
   }
 
   svg.addEventListener("pointerdown", onDown);
+  svg.addEventListener("pointerdown", () => { copyMenu.hidden = true; });
   // A press on the canvas would otherwise move focus once the event is over,
   // taking it away from a box that has just been added and is waiting for
   // text, which then counts as left empty. onDown focuses what it needs.
@@ -1974,6 +2004,213 @@ function create(container, opts) {
     finishEditing();
     finishLabel(true);
   }
+  /* ---------- copying out ---------- */
+  // A drawing for other apps (Confluence, Teams, Figma, PowerPoint...): all of
+  // it plain SVG, with every colour written onto the element, since none of
+  // this page's styles go along. Text is real SVG text, wrapped as it is on
+  // screen, where the editor itself uses HTML that only a browser can show.
+  // Arrowheads are plain triangles, which other apps keep more reliably than
+  // SVG markers.
+  const OUT = { line: "#6a6252", mmLine: "#8a8070", text: "#141108", label: "#2f2a22", labelBg: "#ffffff" };
+  // The lines a box's text breaks into, exactly as the page breaks them: the
+  // text is laid out in a hidden label of the same width and font, and each
+  // character's line is read back. (Imitating the browser's rules instead,
+  // for hyphens, slashes and letter widths, never quite matches.)
+  function laidOutLines(text, css) {
+    const box = htmlEl("div", { class: "tc-label tc-measure", "aria-hidden": "true" });
+    Object.assign(box.style, css);
+    box.textContent = text;
+    document.body.append(box);
+    const tn = box.firstChild, lines = [], same = parseFloat(css.fontSize) * 0.6;
+    let line = "", top = null;
+    for (let i = 0; tn && i < text.length;) {
+      const ch = String.fromCodePoint(text.codePointAt(i));
+      const r = document.createRange();
+      r.setStart(tn, i);
+      r.setEnd(tn, i + ch.length);
+      i += ch.length;
+      if (ch === "\n") { lines.push(line); line = ""; top = null; continue; }
+      const rect = [...r.getClientRects()].find(x => x.width > 0);
+      if (rect && top !== null && Math.abs(rect.top - top) > same) { lines.push(line); line = ""; }
+      if (rect) top = rect.top;
+      line += ch;
+    }
+    lines.push(line);
+    box.remove();
+    return lines.map(l => l.trimEnd());
+  }
+  // How far a line's baseline sits below its middle, as a share of the font
+  // size, for the font the page uses.
+  function baselineShift(family) {
+    const g = document.createElement("canvas").getContext("2d");
+    g.font = "100px " + family;
+    const m = g.measureText("Hg");
+    const v = (m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 200;
+    return g.font.startsWith("100px") && v > 0 && v < 1 ? v : 0.35;
+  }
+  function labelWidth(text, size) {
+    const t = svgEl("text", { "font-size": size, "font-family": getComputedStyle(root).fontFamily }, linkLayer);
+    t.textContent = text;
+    const w = t.getComputedTextLength();
+    t.remove();
+    return w;
+  }
+  const xesc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const f2 = v => Math.round(v * 100) / 100;
+  function arrowHead(p, dir) {
+    const L = 9, W = 4.5;
+    const bx = p.x - dir[0] * L, by = p.y - dir[1] * L, nx = -dir[1], ny = dir[0];
+    return `${f2(p.x)},${f2(p.y)} ${f2(bx + nx * W)},${f2(by + ny * W)} ${f2(bx - nx * W)},${f2(by - ny * W)}`;
+  }
+  function unit(a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+    return [dx / l, dy / l];
+  }
+
+  function exportMarkup() {
+    flush();
+    const nodes = visibleNodes();
+    if (!nodes.length) return "";
+    const family = getComputedStyle(root).fontFamily;
+    const shift = baselineShift(family);
+    const gs = nodes.map(geom);
+    let x0 = Math.min(...gs.map(g => g.x)), x1 = Math.max(...gs.map(g => g.x + g.w));
+    let y0 = Math.min(...gs.map(g => g.y)), y1 = Math.max(...gs.map(g => g.y + g.h));
+    const lines = [], shapes = [], labels = [];
+    const grow = b => {
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
+    };
+    const measurePath = d => {
+      const el = svgEl("path", { d }, linkLayer);
+      return { box: el.getBBox(), len: el.getTotalLength(), el };
+    };
+
+    if (isMind()) {
+      for (const nd of nodes) {
+        if (!nd.parent) continue;
+        const parent = nodeById(nd.parent);
+        const d = routeD("curved", anchorPoint(geom(parent), nd.side), nd.side,
+          anchorPoint(geom(nd), OPPOSITE[nd.side]), OPPOSITE[nd.side]);
+        const m = measurePath(d);
+        grow(m.box);
+        m.el.remove();
+        lines.push(`<path d="${d}" fill="none" stroke="${OUT.mmLine}" stroke-width="1.6"/>`);
+      }
+    } else {
+      for (const l of data.links) {
+        const a = nodeById(l.from.node), b = nodeById(l.to.node);
+        if (!a || !b) continue;
+        const d = linkGeometry(l);
+        const m = measurePath(d);
+        grow(m.box);
+        lines.push(`<path d="${d}" fill="none" stroke="${OUT.line}" stroke-width="1.6" stroke-linejoin="round"/>`);
+        const pa = anchorPoint(a, l.from.side), pb = anchorPoint(b, l.to.side);
+        const straight = l.style === "straight";
+        const endDir = straight ? unit(pa, pb) : [-NORMAL[l.to.side][0], -NORMAL[l.to.side][1]];
+        const startDir = straight ? unit(pb, pa) : [-NORMAL[l.from.side][0], -NORMAL[l.from.side][1]];
+        if (l.arrow !== "none") lines.push(`<polygon points="${arrowHead(pb, endDir)}" fill="${OUT.line}"/>`);
+        if (l.arrow === "both") lines.push(`<polygon points="${arrowHead(pa, startDir)}" fill="${OUT.line}"/>`);
+        if (l.label) {
+          const mid = m.el.getPointAtLength(m.len / 2);
+          const w = labelWidth(l.label, 12) + 10, h = 18;
+          labels.push(`<rect x="${f2(mid.x - w / 2)}" y="${f2(mid.y - h / 2)}" width="${f2(w)}" height="${h}" rx="4" fill="${OUT.labelBg}"/>`
+            + `<text x="${f2(mid.x)}" y="${f2(mid.y + 12 * shift)}" text-anchor="middle" font-size="12" fill="${OUT.label}">${xesc(l.label)}</text>`);
+          grow({ x: mid.x - w / 2, y: mid.y - h / 2, width: w, height: h });
+        }
+        m.el.remove();
+      }
+    }
+
+    nodes.forEach((nd, i) => {
+      const g = gs[i], c = COLORS[nd.color] || COLORS[0];
+      const paint = `fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"`;
+      if (!isMind() && nd.shape === "oval") {
+        shapes.push(`<ellipse cx="${f2(g.x + g.w / 2)}" cy="${f2(g.y + g.h / 2)}" rx="${f2(g.w / 2)}" ry="${f2(g.h / 2)}" ${paint}/>`);
+      } else {
+        const r = isMind() ? MM.radius : RADIUS;
+        shapes.push(`<rect x="${f2(g.x)}" y="${f2(g.y)}" width="${f2(g.w)}" height="${f2(g.h)}" rx="${r}" ${paint}/>`);
+      }
+      if (!nd.text) return;
+      // A last line break shows nothing on the page until something follows it.
+      const text = nd.text.replace(/\n$/, "");
+      let tb, size, weight, lh;
+      if (isMind()) {
+        const sz = mindSize(nd.text, !nd.parent);
+        tb = { x: g.x + sz.padX, y: g.y + sz.padY, w: g.w - sz.padX * 2, h: g.h - sz.padY * 2 };
+        size = nd.parent ? MM.font : MM.rootFont;
+        weight = nd.parent ? 400 : 600;
+        lh = MM.lineHeight;
+      } else {
+        tb = textBox(nd);
+        size = fitFont(nd.text, tb.w, tb.h);
+        weight = 400;
+        lh = 1.25;
+      }
+      const rows = laidOutLines(text, { width: tb.w + "px", fontSize: size + "px", fontWeight: String(weight) });
+      const lineH = size * lh;
+      const top = tb.y + tb.h / 2 - (rows.length * lineH) / 2;
+      const cx = f2(tb.x + tb.w / 2);
+      const spans = rows.map((t, k) => t
+        ? `<tspan x="${cx}" y="${f2(top + lineH * (k + 0.5) + size * shift)}">${xesc(t)}</tspan>` : "").join("");
+      shapes.push(`<text text-anchor="middle" font-size="${size}" font-weight="${weight}" fill="${OUT.text}" xml:space="preserve">${spans}</text>`);
+    });
+
+    const pad = 16;
+    const w = Math.ceil(x1 - x0 + pad * 2), h = Math.ceil(y1 - y0 + pad * 2);
+    return `<svg xmlns="${SVGNS}" width="${w}" height="${h}" viewBox="${f2(x0 - pad)} ${f2(y0 - pad)} ${w} ${h}" `
+      + `font-family="${xesc(family)}">${lines.join("")}${shapes.join("")}${labels.join("")}</svg>`;
+  }
+
+  // The same picture as a PNG, twice the size for sharpness, on white.
+  function toPng(svgText) {
+    return new Promise((resolve, reject) => {
+      const m = svgText.match(/width="([\d.]+)" height="([\d.]+)"/);
+      const w = +m[1], h = +m[2];
+      const scale = Math.min(2, 8000 / Math.max(w, h));
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement("canvas");
+        cv.width = Math.ceil(w * scale);
+        cv.height = Math.ceil(h * scale);
+        const g = cv.getContext("2d");
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, 0, cv.width, cv.height);
+        g.drawImage(img, 0, 0, cv.width, cv.height);
+        cv.toBlob(b => b ? resolve(b) : reject(new Error("the image couldn't be made")), "image/png");
+      };
+      img.onerror = () => reject(new Error("the drawing couldn't be turned into an image"));
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText);
+    });
+  }
+
+  async function copyOut(kind) {
+    copyMenu.hidden = true;
+    const svgText = exportMarkup();
+    if (!svgText) { flash("Nothing to copy yet"); return; }
+    try {
+      if (kind === "png") {
+        // Handing the clipboard a promise keeps the click's permission to
+        // write while the image is being made.
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": toPng(svgText) })]);
+        flash("Copied as an image");
+      } else {
+        // As text too: many apps (Figma, draw.io, editors) take SVG pasted as
+        // text; others read the SVG image type where the browser offers it.
+        const items = { "text/plain": new Blob([svgText], { type: "text/plain" }) };
+        if (window.ClipboardItem && ClipboardItem.supports && ClipboardItem.supports("image/svg+xml")) {
+          items["image/svg+xml"] = new Blob([svgText], { type: "image/svg+xml" });
+        }
+        await navigator.clipboard.write([new ClipboardItem(items)]);
+        flash("Copied as SVG");
+      }
+    } catch (err) {
+      flash(err && err.name === "NotAllowedError"
+        ? "Couldn't copy: the browser didn't allow it here"
+        : "Couldn't copy: " + (err && err.message ? err.message : err));
+    }
+  }
+
   // The drawing as a still picture: its lines and boxes, cropped to what's
   // there, as standalone SVG markup. Empty when there's nothing to show.
   function stillMarkup() {
@@ -2015,7 +2252,11 @@ function create(container, opts) {
     if (svg.clientWidth && svg.clientHeight) ready();
     else requestAnimationFrame(ready);
   }
-  return { getData, setData, fit, tidyAll, destroy, undo, redo, flush, snapshot: stillMarkup, refresh: render, element: root };
+  return {
+    getData, setData, fit, tidyAll, destroy, undo, redo, flush,
+    snapshot: stillMarkup, exportSVG: exportMarkup, copy: copyOut, toPng,
+    refresh: render, element: root
+  };
 }
 
 // A still picture of a drawing, for showing it where it isn't being edited.
