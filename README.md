@@ -391,7 +391,8 @@ themselves to their text (several lines allowed). The + on a box adds a
 branch, placed automatically; dragging out from one of its dots grows one in
 another direction. Drag a box to move its whole branch (it turns to face the
 other way if it crosses its parent), drop it on another box to re-attach it,
-fold a branch away, or tidy a branch or the whole map. Tab while typing starts
+fold away the branches on one side of a box (the − on that edge; each side
+folds on its own), or tidy a branch or the whole map. Tab while typing starts
 a branch; Tab and Enter on a selected box add a child and a sibling.
 
 Both are mouse-first: click to select, drag empty space to select several,

@@ -20,11 +20,12 @@
  *
  * A mind map, a tree whose boxes size themselves to their text:
  *   { v: 1, type: "mindmap",
- *     nodes: [{ id, parent, side, x, y, text, color: 0-4, folded }] }
+ *     nodes: [{ id, parent, side, x, y, text, color: 0-4, folded: [sides] }] }
  *   One node has parent null: the central topic. Every other node hangs off
  *   its parent's `side`, and (x, y) is the point where its line meets it:
  *   the middle of its left edge for a node on the right, and so on. That way
- *   a box grows away from its parent as you type.
+ *   a box grows away from its parent as you type. `folded` lists the sides
+ *   whose branches are tucked away; each side folds on its own.
  *
  * Sides are "top", "right", "bottom" and "left".
  */
@@ -161,12 +162,12 @@ function normalizeMind(d) {
     y: +n.y || 0,
     text: typeof n.text === "string" ? n.text : "",
     color: clamp(n.color | 0, 0, COLORS.length - 1),
-    folded: !!n.folded
+    folded: Array.isArray(n.folded) ? SIDES.filter(x => n.folded.includes(x)) : n.folded ? [...SIDES] : []
   }));
   const byId = new Map(nodes.map(n => [n.id, n]));
   let root = nodes.find(n => n.parent == null) || null;
   if (!root) {
-    root = { id: uid(), parent: null, side: null, x: 0, y: 0, text: "", color: 1, folded: false };
+    root = { id: uid(), parent: null, side: null, x: 0, y: 0, text: "", color: 1, folded: [] };
     nodes.unshift(root);
     byId.set(root.id, root);
   }
@@ -599,11 +600,20 @@ function create(container, opts) {
     }
     return out;
   }
-  // Everything not tucked away inside a folded branch.
+  const isFolded = (n, side) => !!(n.folded && n.folded.includes(side));
+  // A box's branches on one side, and everything under them.
+  function sideBranches(n, side) {
+    const out = [];
+    for (const c of childrenOf(n.id)) if (c.side === side) out.push(c, ...descendants(c));
+    return out;
+  }
+  // Everything not tucked away on a folded side.
   function visibleNodes() {
     if (!isMind()) return data.nodes;
     const hidden = new Set();
-    for (const n of data.nodes) if (n.folded) for (const d of descendants(n)) hidden.add(d.id);
+    for (const n of data.nodes) {
+      for (const side of n.folded || []) for (const d of sideBranches(n, side)) hidden.add(d.id);
+    }
     return data.nodes.filter(n => !hidden.has(n.id));
   }
   function nodeAt(p, except) {
@@ -855,26 +865,30 @@ function create(container, opts) {
       }
     }
 
-    // Fold buttons on mind-map boxes with branches: always shown on a folded
-    // box (with how much is inside), on hover or selection otherwise.
+    // Fold buttons, one for each side of a box that has branches, folding
+    // only that side. A folded side's button always shows, with how much is
+    // tucked away; an open side's only on hover or selection.
     if (mind && !busy) {
       for (const n of visibleNodes()) {
-        const kids = childrenOf(n.id);
-        if (!kids.length) continue;
-        if (!n.folded && n !== hover && !selNodes.has(n.id)) continue;
+        const kidSides = [...new Set(childrenOf(n.id).map(k => k.side))];
+        if (!kidSides.length) continue;
+        const active = n === hover || selNodes.has(n.id);
         const g = geom(n);
-        const sides = n.folded ? [kids[0].side] : [...new Set(kids.map(k => k.side))];
-        for (const side of sides) {
+        for (const side of kidSides) {
+          const folded = isFolded(n, side);
+          if (!folded && !active) continue;
           const a = anchorPoint(g, side);
-          const r = (n.folded ? 8 : 6.5) / z;
-          const fg = svgEl("g", { class: "tc-fold" + (n.folded ? " folded" : ""), "data-fold": n.id }, overlay);
-          svgEl("title", {}, fg).textContent = n.folded ? "Unfold this branch" : "Fold this branch";
+          const r = (folded ? 8 : 6.5) / z;
+          const fg = svgEl("g", {
+            class: "tc-fold" + (folded ? " folded" : ""), "data-fold": n.id, "data-fold-side": side
+          }, overlay);
+          svgEl("title", {}, fg).textContent = folded ? "Unfold these branches" : "Fold the branches on this side";
           svgEl("circle", { cx: a.x, cy: a.y, r }, fg);
-          if (n.folded) {
+          if (folded) {
             const t = svgEl("text", {
               x: a.x, y: a.y, "text-anchor": "middle", "dominant-baseline": "central", "font-size": 9 / z
             }, fg);
-            t.textContent = String(descendants(n).length);
+            t.textContent = String(sideBranches(n, side).length);
           } else {
             const k = 3 / z;
             svgEl("path", { d: `M${a.x - k} ${a.y} H${a.x + k}` }, fg);
@@ -1017,7 +1031,7 @@ function create(container, opts) {
         const foldBtn = ctx.querySelector("[data-fold-btn]");
         const withKids = ns.filter(n => childrenOf(n.id).length);
         foldBtn.hidden = !withKids.length;
-        foldBtn.innerHTML = withKids.length && withKids.every(n => n.folded) ? ICON.unfold : ICON.fold;
+        foldBtn.innerHTML = withKids.length && withKids.every(allFolded) ? ICON.unfold : ICON.fold;
         ctx.querySelector("[data-delete]").hidden = ns.every(n => !n.parent);
       }
       const gs = ns.map(geom);
@@ -1187,25 +1201,25 @@ function create(container, opts) {
   function branchBox(n) {
     const g = geom(n);
     const b = { x0: g.x, y0: g.y, x1: g.x + g.w, y1: g.y + g.h };
-    if (!n.folded) {
-      for (const c of childrenOf(n.id)) {
-        const cb = branchBox(c);
-        b.x0 = Math.min(b.x0, cb.x0); b.y0 = Math.min(b.y0, cb.y0);
-        b.x1 = Math.max(b.x1, cb.x1); b.y1 = Math.max(b.y1, cb.y1);
-      }
+    for (const c of childrenOf(n.id)) {
+      if (isFolded(n, c.side)) continue;
+      const cb = branchBox(c);
+      b.x0 = Math.min(b.x0, cb.x0); b.y0 = Math.min(b.y0, cb.y0);
+      b.x1 = Math.max(b.x1, cb.x1); b.y1 = Math.max(b.y1, cb.y1);
     }
     return b;
   }
   // Lays out everything under a box, neatly, from where the box is now.
   // Each child's branch is first laid out around the origin, measured, and
   // then stacked beside its siblings, centred on the parent.
+  // A folded side is left as it is, to reappear where it was.
   function layoutKids(n) {
-    if (n.folded) return;
     const r = geom(n);
     // Sideways branches first; branches going up or down then keep clear of
     // whatever those take up beside the box.
     const placed = [];
     for (const side of ["right", "left", "bottom", "top"]) {
+      if (isFolded(n, side)) continue;
       const kids = childrenOf(n.id).filter(k => k.side === side);
       if (!kids.length) continue;
       // Keep the order they already have on screen.
@@ -1275,10 +1289,10 @@ function create(container, opts) {
     const n = {
       id: uid(), parent: parent.id, side, x: 0, y: 0, text: "",
       // Branches off the centre start white; deeper ones take their parent's colour.
-      color: parent.parent ? parent.color : 0, folded: false
+      color: parent.parent ? parent.color : 0, folded: []
     };
     change(() => {
-      parent.folded = false;
+      parent.folded = parent.folded.filter(x => x !== side);
       data.nodes.push(n);
       if (at) { n.x = at.x; n.y = at.y; } else autoPlace(parent, side, n);
     });
@@ -1327,7 +1341,7 @@ function create(container, opts) {
     const ox = n.x, oy = n.y;
     n.parent = target.id;
     n.side = side;
-    target.folded = false;
+    target.folded = target.folded.filter(x => x !== side);
     autoPlace(target, side, n);
     for (const d of kids) { d.x += n.x - ox; d.y += n.y - oy; }
     if (turned) layoutKids(n);
@@ -1340,18 +1354,27 @@ function create(container, opts) {
   function tidySelected() {
     change(() => { for (const id of selNodes) { const n = nodeById(id); if (n) layoutKids(n); } });
   }
-  function toggleFold(n) {
-    change(() => { n.folded = !n.folded; });
+  function toggleFold(n, side) {
+    change(() => {
+      n.folded = isFolded(n, side) ? n.folded.filter(x => x !== side) : [...n.folded, side];
+    });
     // Nothing stays selected inside a branch that just folded away.
     const shown = new Set(visibleNodes().map(v => v.id));
     selNodes = new Set([...selNodes].filter(id => shown.has(id)));
     render();
   }
+  const branchSidesOf = n => [...new Set(childrenOf(n.id).map(k => k.side))];
+  const allFolded = n => branchSidesOf(n).every(x => isFolded(n, x));
+  // The toolbar's button folds every side of the selected boxes at once, or
+  // opens them all again if they're all folded.
   function toggleFoldSelected() {
     const ns = [...selNodes].map(nodeById).filter(n => n && childrenOf(n.id).length);
     if (!ns.length) return;
-    const fold = !ns.every(n => n.folded);
-    change(() => { for (const n of ns) n.folded = fold; });
+    const fold = !ns.every(allFolded);
+    change(() => { for (const n of ns) n.folded = fold ? branchSidesOf(n) : []; });
+    const shown = new Set(visibleNodes().map(v => v.id));
+    selNodes = new Set([...selNodes].filter(id => shown.has(id)));
+    render();
   }
 
   /* ---------- typing in a box ---------- */
@@ -1550,7 +1573,7 @@ function create(container, opts) {
 
     const t = e.target;
     const fold = t.closest("[data-fold]");
-    if (fold) { const n = nodeById(fold.dataset.fold); if (n) toggleFold(n); return; }
+    if (fold) { const n = nodeById(fold.dataset.fold); if (n) toggleFold(n, fold.dataset.foldSide); return; }
 
     const plus = t.closest("[data-plus]");
     if (plus) {
