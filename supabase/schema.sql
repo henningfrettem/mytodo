@@ -97,8 +97,9 @@ create table if not exists todo.note_entries (
   id          uuid primary key,
   user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
   note_id     uuid not null references todo.notes(id) on delete cascade,
-  -- Sanitised HTML. Images are <img data-sb="<file>"> pointing into the
-  -- todo-images bucket, never a URL: signed URLs expire.
+  -- A text entry's sanitised HTML. Images are <img data-sb="<file>">
+  -- pointing into the todo-images bucket, never a URL: signed URLs expire.
+  -- For a diagram or mind map (see kind, below), its drawing as JSON.
   body        text not null default '',
   position    integer not null default 0,
   -- The timestamp shown on the entry. Reordering never changes it.
@@ -116,6 +117,9 @@ grant all on todo.note_categories, todo.notes, todo.note_entries to anon, authen
 
 alter table todo.categories add column if not exists private boolean not null default false;
 alter table todo.tasks      add column if not exists private boolean not null default false;
+-- What an entry is: 'text', 'diagram' or 'mindmap'. Until this exists the app
+-- still works, it just won't offer diagrams and mind maps.
+alter table todo.note_entries add column if not exists kind text not null default 'text';
 
 create index if not exists folders_user_pos    on todo.folders    (user_id, position);
 create index if not exists categories_fold_pos on todo.categories (folder_id, position);

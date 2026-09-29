@@ -1823,6 +1823,73 @@
     text-underline-offset: 2px;
   }
 
+
+  /* ---------- Diagrams and mind maps in notes ---------- */
+  .note-new-group { position: relative; display: flex; }
+  .note-new-group #note-new-entry { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .note-bar .note-new-more { padding: 0 8px; border-left-color: transparent; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .note-new-group:hover .note-new-more { border-left-color: var(--rule); }
+  .note-new-menu { min-width: 190px; }
+  .note-new-key { font-size: 11px; color: var(--mute); }
+  .entry-kind {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--mute);
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--paper-2);
+  }
+  .entry-drawing {
+    position: relative;
+    margin: 2px -12px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius);
+    background: var(--paper);
+    cursor: pointer;
+    overflow: hidden;
+    outline: none;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .entry-drawing:hover, .entry-drawing:focus-visible { border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-ghost); }
+  .entry-drawing svg { display: block; max-width: 100%; height: auto; max-height: 300px; margin: 0 auto; }
+  .entry-drawing-empty { padding: 18px 0; text-align: center; font-size: 13px; font-style: italic; color: var(--mute); }
+  .entry-drawing-hint {
+    position: absolute;
+    right: 8px;
+    bottom: 6px;
+    padding: 1px 8px;
+    border: 1px solid var(--rule-soft);
+    border-radius: 10px;
+    background: var(--card);
+    font-size: 11px;
+    color: var(--mute);
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  .entry-drawing:hover .entry-drawing-hint, .entry-drawing:focus-visible .entry-drawing-hint { opacity: 1; }
+  .note-drawing {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+  }
+  .note-drawing-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px 10px 22px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--card);
+  }
+  .note-drawing-title { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-2); }
+  .note-drawing-when { flex: 1; font-size: 12px; color: var(--mute); }
+  .note-drawing-stage { flex: 1; min-height: 0; position: relative; }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -2085,10 +2152,21 @@
     <textarea id="note-heading" class="task-subject-input note-heading" placeholder="Heading" rows="1" maxlength="200" spellcheck="false"></textarea>
     <div class="note-heading-hint" id="note-heading-hint" hidden>Every note needs a heading.</div>
     <div class="note-bar">
+      <div class="note-new-group">
       <button class="btn btn-ghost" id="note-new-entry">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
         New entry <kbd>Ctrl</kbd><kbd>Enter</kbd>
       </button>
+      <button class="btn btn-ghost note-new-more" id="note-new-more" type="button"
+              title="A diagram or a mind map instead" aria-label="Other kinds of entry" aria-haspopup="true">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dropdown note-new-menu" id="note-new-menu" role="menu" hidden>
+        <button class="dropdown-item" type="button" role="menuitem" data-kind="text">Text <span class="note-new-key">Ctrl+Enter</span></button>
+        <button class="dropdown-item" type="button" role="menuitem" data-kind="diagram">Diagram</button>
+        <button class="dropdown-item" type="button" role="menuitem" data-kind="mindmap">Mind map</button>
+      </div>
+      </div>
       <div class="note-format" role="toolbar" aria-label="Formatting">
         <button class="md-btn" data-fmt="bold" title="Bold (Ctrl+B)" aria-label="Bold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
         <button class="md-btn" data-fmt="italic" title="Italic (Ctrl+I)" aria-label="Italic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="11" y2="5"/><line x1="13" y1="19" x2="5" y2="19"/><line x1="15" y1="5" x2="9" y2="19"/></svg></button>
@@ -2107,6 +2185,15 @@
       <span class="note-link-hint"><kbd>Enter</kbd> apply &middot; empty removes it &middot; <kbd>Esc</kbd> cancel</span>
     </div>
     <div class="note-entries" id="note-entries"></div>
+    <!-- A diagram or mind map being edited, over the whole window. -->
+    <div class="note-drawing" id="note-drawing" hidden>
+      <div class="note-drawing-bar">
+        <span class="note-drawing-title" id="note-drawing-title">Diagram</span>
+        <span class="note-drawing-when" id="note-drawing-when"></span>
+        <button class="btn btn-primary" id="note-drawing-done" type="button">Done</button>
+      </div>
+      <div class="note-drawing-stage" id="note-drawing-stage"></div>
+    </div>
     <footer class="task-footer">
       <div class="task-footer-controls"><select id="note-category" class="select" aria-label="Category"></select></div>
       <span class="task-meta" id="note-meta"></span>
@@ -2137,6 +2224,9 @@
 
 <!-- Optional, gitignored. See config.local.example.js. Absent is fine. -->
 <script src="config.local.js" onerror="void 0"></script>
+<!-- The diagram and mind-map editor. A plain script rather than a module, so
+     it loads from file:// too. Without it, drawings show a note saying so. -->
+<script src="canvas.js" onerror="void 0"></script>
 
 <!-- supabase-js v2.116.0, UMD build, vendored verbatim.
      Inlined rather than imported: an ES module import is CORS-checked and
@@ -2290,13 +2380,16 @@ async function selectAll(table, ...orderBy) {
 }
 
 async function loadState() {
-  const [f, c, t, nc, nn, ne] = await Promise.all([
+  const [f, c, t, nc, nn, ne, ek] = await Promise.all([
     selectAll("folders", "position"),
     selectAll("categories", "position"),
     selectAll("tasks", "category_id", "position"),
     selectAll("note_categories", "position"),
     selectAll("notes", "category_id", "position"),
-    selectAll("note_entries", "note_id", "position")
+    selectAll("note_entries", "note_id", "position"),
+    // Whether entries can be diagrams and mind maps yet: the column that
+    // says so came later than the notes tables themselves.
+    sb.from("note_entries").select("kind").limit(1)
   ]);
   for (const r of [f, c, t]) if (r.error) throw new Error(r.error.message);
 
@@ -2304,6 +2397,7 @@ async function loadState() {
   // before and the notes pane says what to run.
   const noteErr = [nc, nn, ne].find(r => r.error);
   notesAvailable = !noteErr;
+  entryKindsAvailable = notesAvailable && !ek.error;
   if (noteErr) console.warn("Notes unavailable:", noteErr.error.message);
   const noteCatRows = notesAvailable ? nc.data : [];
 
@@ -2333,7 +2427,12 @@ async function loadState() {
   const entriesByNote = new Map();
   for (const row of notesAvailable ? ne.data : []) {
     if (!entriesByNote.has(row.note_id)) entriesByNote.set(row.note_id, []);
-    entriesByNote.get(row.note_id).push({ id: row.id, body: row.body || "", createdAt: row.created_at });
+    entriesByNote.get(row.note_id).push({
+      id: row.id,
+      body: row.body || "",
+      kind: DRAWING_KINDS.includes(row.kind) ? row.kind : "text",
+      createdAt: row.created_at
+    });
   }
   const notes = (notesAvailable ? nn.data : []).map(row => ({
     id: row.id,
@@ -2421,6 +2520,8 @@ function rowsFromState() {
     nt.entries.forEach((e, j) => noteEntries.push({
       id: e.id, user_id: userId, note_id: nt.id,
       body: e.body || "",
+      // Only sent once the column exists; before that every entry is text.
+      ...(entryKindsAvailable ? { kind: e.kind || "text" } : {}),
       position: j,
       created_at: e.createdAt
     }));
@@ -3832,7 +3933,9 @@ function exportBoard() {
         archived: !!x.archived,
         archivedAt: x.archivedAt || null,
         createdAt: x.createdAt,
-        entries: x.entries.map(e => ({ id: e.id, createdAt: e.createdAt, html: e.body || "" }))
+        entries: x.entries.map(e => isDrawing(e)
+          ? { id: e.id, createdAt: e.createdAt, kind: e.kind, drawing: drawingData(e) }
+          : { id: e.id, createdAt: e.createdAt, kind: "text", html: e.body || "" })
       })),
     activeFolderId: state.activeFolderId
   };
@@ -4234,6 +4337,8 @@ document.addEventListener("keydown", e => {
     if (!categoryModal.hidden) closeCategoryModal();
     else if (!quickModal.hidden) closeQuickAdd();
     else if (!taskModal.hidden) closeTaskModal();
+    // In a drawing, Esc steps back out to the note before it closes the note.
+    else if (!noteModal.hidden && drawing) closeDrawing();
     else if (!noteModal.hidden) closeNoteModal();
     else if (!foldersModal.hidden) closeFoldersModal();
     else if (searchOpen()) closeSearch();
@@ -4481,6 +4586,15 @@ function entryHtml(body) {
 
 // Plain text for search, cached against the body it was made from.
 function entryText(entry) {
+  if (isDrawing(entry)) {
+    if (entry._textOf !== entry.body) {
+      const d = drawingData(entry);
+      entry._text = [...(d.nodes || []).map(x => x.text || ""), ...(d.links || []).map(l => l.label || "")]
+        .join(" ").replace(/\s+/g, " ").trim();
+      entry._textOf = entry.body;
+    }
+    return entry._text;
+  }
   if (entry._textOf !== entry.body) {
     const tpl = document.createElement("template");
     tpl.innerHTML = (entry.body || "").replace(/<(br|\/div|\/p|\/li)\b[^>]*>/gi, " $&");
@@ -5074,8 +5188,7 @@ function entryFor(body) {
 }
 
 function renderEntry(note, entry) {
-  const art = el("article", { class: "entry", dataset: { entryId: entry.id } });
-  const grip = el("div", { class: "entry-grip", title: "Drag to reorder", "aria-hidden": "true" }, svg("grip", 10, 16));
+  if (isDrawing(entry)) return entryShell(note, entry, drawingPreview(note, entry));
   const body = el("div", {
     class: "entry-body md",
     contenteditable: "true",
@@ -5133,6 +5246,15 @@ function renderEntry(note, entry) {
     insertNoteImage(file, entry, body);
   });
 
+  return entryShell(note, entry, body);
+}
+
+// What every entry has around its content, text or drawing: the drag handle,
+// the timestamp and the delete button.
+function entryShell(note, entry, body) {
+  const art = el("article", { class: "entry", dataset: { entryId: entry.id } });
+  const grip = el("div", { class: "entry-grip", title: "Drag to reorder", "aria-hidden": "true" }, svg("grip", 10, 16));
+
   // Only the handle starts a drag, so selecting text inside an entry still works.
   grip.addEventListener("pointerdown", () => { art.draggable = true; });
   grip.addEventListener("pointerup", () => { art.draggable = false; });
@@ -5173,6 +5295,7 @@ function renderEntry(note, entry) {
     el("div", { class: "entry-head" },
       el("time", { class: "entry-time", datetime: entry.createdAt }, entryStamp(entry.createdAt)),
       el("span", { class: "entry-ago" }, entryAgo(entry.createdAt)),
+      isDrawing(entry) ? el("span", { class: "entry-kind" }, DRAWING_LABEL[entry.kind]) : null,
       del),
     body);
   return art;
@@ -5316,10 +5439,19 @@ function swapPendingImage(token, replacement) {
   }
 }
 
-function addNoteEntry() {
+// kind: "text" (the default, also when called straight from a click), or
+// "diagram" / "mindmap".
+function addNoteEntry(kind) {
+  kind = DRAWING_KINDS.includes(kind) ? kind : "text";
   const note = openNote();
   if (!note) return;
-  const entry = { id: uuid(), body: "", createdAt: new Date().toISOString() };
+  if (kind !== "text" && !drawingsReady()) return;
+  const entry = {
+    id: uuid(),
+    body: kind === "text" ? "" : JSON.stringify(TodoCanvas.normalize({ type: kind })),
+    kind,
+    createdAt: new Date().toISOString()
+  };
   note.entries.unshift(entry);
   save();
   const none = $(".entry-none", noteEntriesEl);
@@ -5329,7 +5461,8 @@ function addNoteEntry() {
   noteEntriesEl.prepend(art);
   noteEntriesEl.scrollTop = 0;
   updateNoteMeta(note);
-  $(".entry-body", art).focus();
+  if (kind === "text") $(".entry-body", art).focus();
+  else openDrawing(note, entry, { startTyping: true });
 }
 
 function moveNoteEntry(note, srcId, targetId, where) {
@@ -5351,7 +5484,7 @@ function deleteNoteEntry(note, entry) {
   note.entries.splice(idx, 1);
   save();
   renderNoteEntries(note);
-  if (!entry.body) return; // nothing worth an undo
+  if (entryIsEmpty(entry)) return; // nothing worth an undo
   toast("Entry deleted", {
     actionLabel: "Undo",
     onAction: () => {
@@ -5365,6 +5498,8 @@ function deleteNoteEntry(note, entry) {
 }
 
 function hideNoteModal() {
+  closeDrawing();
+  noteNewMenu.hidden = true;
   hideItemOpen();
   openNoteId = null;
   lastEntryBody = null;
@@ -5390,11 +5525,12 @@ function afterNoteClosed(noteId) {
 
 // Returns false when the note can't close yet because it has no heading.
 function closeNoteModal() {
+  closeDrawing();
   const note = openNote();
   if (!note) { hideNoteModal(); return true; }
   flushNoteEdits(note, { closing: true });
   const before = note.entries.length;
-  note.entries = note.entries.filter(e => e.body);
+  note.entries = note.entries.filter(e => !entryIsEmpty(e));
   const title = noteHeading.value.replace(/\s+/g, " ").trim().slice(0, 200);
   if (!title) {
     if (note.entries.length) {
@@ -5484,7 +5620,7 @@ $("#note-delete").addEventListener("click", async () => {
   const note = openNote();
   if (!note) return;
   flushNoteEdits(note, { closing: true });
-  const n = note.entries.filter(e => e.body).length;
+  const n = note.entries.filter(e => !entryIsEmpty(e)).length;
   const yes = await confirm({
     title: "Delete this note?",
     text: n
@@ -5494,7 +5630,7 @@ $("#note-delete").addEventListener("click", async () => {
   });
   if (!yes || openNoteId !== note.id) return;
   const idx = state.notes.indexOf(note);
-  note.entries = note.entries.filter(e => e.body);
+  note.entries = note.entries.filter(e => !entryIsEmpty(e));
   hideNoteModal();
   state.notes = state.notes.filter(x => x !== note);
   save();
@@ -5514,6 +5650,13 @@ $("#note-new-entry").addEventListener("click", addNoteEntry);
 $$("[data-close='note']").forEach(n => n.addEventListener("click", () => closeNoteModal()));
 
 noteModal.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !noteNewMenu.hidden) {
+    e.stopPropagation();
+    noteNewMenu.hidden = true;
+    return;
+  }
+  // The note's own shortcuts would act on the note behind an open drawing.
+  if (drawing) return;
   if (!(e.ctrlKey || e.metaKey)) return;
   if (e.key === "Enter") { e.preventDefault(); addNoteEntry(); }
   else if (e.key.toLowerCase() === "k") { e.preventDefault(); openLinkBar(); }
@@ -6076,6 +6219,137 @@ noteEntriesEl.addEventListener("mouseleave", e => {
 });
 itemOpenBtn.addEventListener("mouseleave", e => {
   if (!itemOpenFor || !itemOpenFor.contains(e.relatedTarget)) hideItemOpen();
+});
+
+/* ---------- Diagrams and mind maps in entries ---------- */
+// An entry is text by default. A drawing keeps its data (see canvas.js) as
+// JSON in the same body column, with kind saying which it is. In the thread
+// it shows as a still picture; clicking it opens the editor over the whole
+// note window.
+const DRAWING_KINDS = ["diagram", "mindmap"];
+const DRAWING_LABEL = { diagram: "Diagram", mindmap: "Mind map" };
+const isDrawing = entry => DRAWING_KINDS.includes(entry.kind);
+const noteDrawing = $("#note-drawing");
+const noteDrawingStage = $("#note-drawing-stage");
+const noteNewMenu = $("#note-new-menu");
+let entryKindsAvailable = true;  // false until the kind column exists
+let drawing = null;              // { note, entry, canvas } while one is open
+const previewCache = new Map();  // body -> SVG markup
+
+function drawingData(entry) {
+  let d = null;
+  try { d = JSON.parse(entry.body || "null"); } catch {}
+  return d && d.type === entry.kind ? d : { type: entry.kind };
+}
+
+// A diagram with nothing drawn, or a mind map with no words in it yet, is
+// dropped when the note closes, like an empty text entry.
+function entryIsEmpty(entry) {
+  if (!isDrawing(entry)) return !entry.body;
+  const nodes = drawingData(entry).nodes || [];
+  return entry.kind === "diagram" ? !nodes.length : !nodes.some(x => (x.text || "").trim());
+}
+
+function drawingsReady() {
+  if (!window.TodoCanvas) {
+    toast("Diagrams and mind maps need canvas.js, next to index.html.");
+    return false;
+  }
+  if (!entryKindsAvailable) {
+    toast("Diagrams and mind maps need one more column. Run supabase/schema.sql again in Supabase, then reload.", { duration: 7000 });
+    return false;
+  }
+  return true;
+}
+
+function drawingPreview(note, entry) {
+  const label = DRAWING_LABEL[entry.kind];
+  const open = () => openDrawing(note, entry);
+  const box = el("div", {
+    class: "entry-drawing", tabindex: "0", role: "button", "aria-label": `Open the ${label.toLowerCase()}`,
+    onclick: open,
+    onkeydown: e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }
+  });
+  let markup = "";
+  if (window.TodoCanvas) {
+    if (previewCache.has(entry.body)) markup = previewCache.get(entry.body);
+    else {
+      try { markup = TodoCanvas.previewMarkup(drawingData(entry)); } catch (err) { console.error(err); }
+      if (previewCache.size > 200) previewCache.clear();
+      previewCache.set(entry.body, markup);
+    }
+  }
+  // The markup is drawn by canvas.js from the entry's data, with every piece
+  // of text set as text, so it carries nothing from outside.
+  if (markup && !entryIsEmpty(entry)) box.innerHTML = markup;
+  else {
+    box.append(el("div", { class: "entry-drawing-empty" },
+      !window.TodoCanvas ? "Diagrams and mind maps need canvas.js, next to index.html."
+        : entry.kind === "mindmap" ? "An empty mind map. Click to start it." : "An empty diagram. Click to draw."));
+  }
+  box.append(el("span", { class: "entry-drawing-hint" }, "Click to edit"));
+  return box;
+}
+
+// Everything else in the window is made inert while a drawing is open, so
+// neither Tab nor a stray click can reach the note behind it.
+function setNoteInert(on) {
+  for (const child of notePanel.children) if (child !== noteDrawing) child.inert = on;
+}
+
+function openDrawing(note, entry, { startTyping = false } = {}) {
+  if (!window.TodoCanvas) { drawingsReady(); return; }
+  closeDrawing();
+  flushNoteEdits(note);
+  hideItemOpen();
+  hideLinkBar();
+  $("#note-drawing-title").textContent = DRAWING_LABEL[entry.kind];
+  $("#note-drawing-when").textContent = entryStamp(entry.createdAt);
+  noteDrawing.hidden = false;
+  setNoteInert(true);
+  const canvas = TodoCanvas.create(noteDrawingStage, {
+    data: drawingData(entry),
+    startTyping,
+    // Every finished change is saved the same way typed text is.
+    onChange: d => { entry.body = JSON.stringify(d); save(); }
+  });
+  drawing = { note, entry, canvas };
+  if (!startTyping) setTimeout(() => { if (drawing && drawing.canvas === canvas) canvas.element.focus(); }, 30);
+}
+
+function closeDrawing() {
+  if (!drawing) return false;
+  const { note, entry, canvas } = drawing;
+  drawing = null;
+  canvas.flush();
+  const body = JSON.stringify(canvas.getData());
+  if (body !== entry.body) { entry.body = body; save(); }
+  canvas.destroy();
+  noteDrawing.hidden = true;
+  setNoteInert(false);
+  if (openNoteId === note.id && !noteModal.hidden) {
+    renderNoteEntries(note);
+    const back = $(`.entry[data-entry-id="${entry.id}"] .entry-drawing`, noteEntriesEl);
+    if (back) back.focus();
+    else notePanel.focus();
+  }
+  return true;
+}
+
+$("#note-drawing-done").addEventListener("click", () => closeDrawing());
+
+$("#note-new-more").addEventListener("click", e => {
+  e.stopPropagation();
+  noteNewMenu.hidden = !noteNewMenu.hidden;
+  if (!noteNewMenu.hidden) {
+    setTimeout(() => document.addEventListener("click", () => { noteNewMenu.hidden = true; }, { once: true }), 0);
+  }
+});
+noteNewMenu.addEventListener("click", e => {
+  const item = e.target.closest("[data-kind]");
+  if (!item) return;
+  noteNewMenu.hidden = true;
+  addNoteEntry(item.dataset.kind);
 });
 
 /* ---------- Search ---------- */

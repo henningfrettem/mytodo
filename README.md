@@ -224,6 +224,16 @@ note is still a record of what was said. Deleting or archiving a whole note, or
 one of its entries, leaves the cards on the board. A private note, or a note in
 a private category, makes private cards.
 
+**Diagrams and mind maps** can be entries too. The arrow beside **New entry**
+offers Text, Diagram and Mind map. A drawing shows in the thread as a picture
+of itself; click it (or press Enter on it) to open it over the whole note
+window, and **Done** or `Esc` goes back. Esc steps out one thing at a time:
+first the text being typed, then the selection, then the drawing, and only
+then the note. A new mind map opens with the cursor already in its centre.
+Drawings save like everything else, search finds the words in them, and an
+empty diagram or a mind map with no words is dropped when the note closes. The
+editor is described under *Diagrams and mind maps* below.
+
 **Archive** in the note window takes a note out of the list without deleting
 it. Archived notes collect in an **Archived** section at the bottom of the pane,
 still openable and still searchable; **Unarchive** puts one back where it was.
@@ -346,10 +356,13 @@ tasks       id, user_id, folder_id, category_id, subject, description,
 note_categories  id, user_id, folder_id, name, private, position, updated_at
 notes            id, user_id, category_id, title, private, archived,
                  archived_at, position, created_at, updated_at
-note_entries     id, user_id, note_id, body, position, created_at, updated_at
+note_entries     id, user_id, note_id, kind, body, position, created_at, updated_at
 ```
 
-An entry's `body` is the sanitised HTML described under Notes. A task list is
+An entry's `kind` is `text`, `diagram` or `mindmap`. A text entry's `body` is
+the sanitised HTML described under Notes; a drawing's is its data as JSON, in
+the shape documented at the top of `canvas.js`. Before the `kind` column exists
+the app still works, it just doesn't offer drawings. A task list is
 `<ul data-tasks>` with `<li data-task="<card id>">` lines; the id is the only
 link between a line and its card, and everything a line displays (ticked, due
 date) is read from the card when the note is drawn. Images in it are
@@ -371,12 +384,11 @@ a date restores the manual order exactly.
 `due_date` is a plain date with no time or zone, so "due today" means today
 wherever you are.
 
-## Diagrams and mind maps (in progress)
+## Diagrams and mind maps
 
-`canvas.js` is a home-grown drawing editor, on its way to becoming a new kind of
-note entry. It isn't wired into notes yet: open `canvas-prototype.html` to try
-it. That page keeps its drawings in the browser's localStorage and never touches
-your notes.
+`canvas.js` is the home-grown drawing editor behind diagram and mind-map note
+entries. `canvas-prototype.html` is a test bench for it outside the app: it
+keeps its drawings in the browser's localStorage and never touches your notes.
 
 **Diagrams** are drawn by hand, in the style of Miro. Rectangles (with only
 slightly softened corners) and ovals sit on a snapping grid, in 5 colours, and

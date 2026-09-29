@@ -6,8 +6,14 @@
  * a drawing, lets you edit it, and reports every finished change through
  * onChange. Saving is the caller's business.
  *
- *   const c = TodoCanvas.create(element, { data, onChange(data) {} });
- *   c.getData(); c.setData(data); c.fit(); c.tidyAll(); c.refresh(); c.destroy();
+ *   const c = TodoCanvas.create(element, { data, onChange(data) {}, startTyping });
+ *   c.getData(); c.setData(data); c.fit(); c.tidyAll(); c.refresh();
+ *   c.flush();    // finish any typing in progress, so getData() has it
+ *   c.destroy();
+ *   TodoCanvas.previewMarkup(data)   // a still picture of a drawing, as SVG markup
+ *
+ * startTyping: a new mind map whose central topic is empty opens with the
+ * cursor already in it.
  *
  * Two kinds of drawing, both plain data that can be stored as JSON.
  *
@@ -477,6 +483,9 @@ function injectStyles() {
   .tc-swatch.on { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px ${accent}; }
   .tc-zoom-level { min-width: 44px; text-align: center; font-size: 12px; color: #6a6252;
     font-variant-numeric: tabular-nums; }
+  .tc-empty { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 280px;
+    text-align: center; font-size: 13px; line-height: 1.5; color: #8a8070; pointer-events: none; }
+  .tc-preview .tc-node, .tc-preview .tc-link-hit { cursor: inherit; }
   .tc-label-input { position: absolute; z-index: 3; transform: translate(-50%, -50%); width: 180px;
     padding: 5px 8px; font: inherit; font-size: 13px; text-align: center; border: 1px solid ${accent};
     border-radius: 6px; outline: none; background: #fff; box-shadow: 0 4px 14px rgba(26, 22, 18, .12); }
@@ -564,8 +573,10 @@ function create(container, opts) {
   const labelInput = htmlEl("input", {
     class: "tc-label-input", type: "text", maxlength: "80", placeholder: "Label", hidden: true
   });
+  const emptyHint = htmlEl("div", { class: "tc-empty", hidden: true },
+    "Pick a rectangle or an oval on the left, then click the canvas to place it.");
 
-  root.append(svg, tools, zoomBar, ctx, labelInput);
+  root.append(svg, emptyHint, tools, zoomBar, ctx, labelInput);
   container.append(root);
 
   /* ---------- lookups and geometry ---------- */
@@ -958,6 +969,7 @@ function create(container, opts) {
     renderOverlay();
     placeContextBar();
     root.classList.toggle("tc-placing", !!tool);
+    emptyHint.hidden = isMind() || data.nodes.length > 0 || !!tool;
     rectTool.classList.toggle("on", tool === "rect");
     ovalTool.classList.toggle("on", tool === "oval");
     undoBtn.disabled = !undoStack.length;
@@ -1465,9 +1477,12 @@ function create(container, opts) {
     label.removeEventListener("input", onEditInput);
     label.removeEventListener("blur", onEditBlur);
     const text = readText(label).replace(/\s+$/, "");
+    // Asked before the text stops being editable: that drops focus to the
+    // page at once, and the next key (Esc, say) would then miss the canvas.
+    const hadFocus = document.activeElement === label;
     label.removeAttribute("contenteditable");
     fo.classList.remove("editing");
-    if (document.activeElement === label) root.focus({ preventScroll: true });
+    if (hadFocus) root.focus({ preventScroll: true });
     // A mind-map box added a moment ago and left empty is taken back, as if
     // it had never been added.
     if (fresh != null && isMind() && !text) {
@@ -1927,11 +1942,72 @@ function create(container, opts) {
     if (frame) cancelAnimationFrame(frame);
     root.remove();
   }
+  function flush() {
+    finishEditing();
+    finishLabel(true);
+  }
+  // The drawing as a still picture: its lines and boxes, cropped to what's
+  // there, as standalone SVG markup. Empty when there's nothing to show.
+  function stillMarkup() {
+    flush();
+    hover = null;
+    gesture = null;
+    clearSelection();
+    render();
+    const gs = visibleNodes().map(geom);
+    if (!gs.length) return "";
+    let x0 = Math.min(...gs.map(g => g.x)), x1 = Math.max(...gs.map(g => g.x + g.w));
+    let y0 = Math.min(...gs.map(g => g.y)), y1 = Math.max(...gs.map(g => g.y + g.h));
+    if (linkLayer.childNodes.length) {
+      const b = linkLayer.getBBox();
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
+    }
+    const pad = 12;
+    const w = Math.ceil(x1 - x0 + pad * 2), h = Math.ceil(y1 - y0 + pad * 2);
+    const out = svgEl("svg", {
+      xmlns: SVGNS, class: "tc-preview" + (isMind() ? " tc-mm" : ""),
+      viewBox: `${x0 - pad} ${y0 - pad} ${w} ${h}`, width: w, height: h
+    });
+    out.append(defs.cloneNode(true), linkLayer.cloneNode(true), nodeLayer.cloneNode(true));
+    return out.outerHTML;
+  }
 
   render();
-  requestAnimationFrame(() => fit());
-  return { getData, setData, fit, tidyAll, destroy, undo, redo, refresh: render, element: root };
+  if (!opts.still) {
+    const ready = () => {
+      fit();
+      if (opts.startTyping && isMind()) {
+        const centre = data.nodes.find(n => !n.parent);
+        if (centre && !centre.text) { selectOnly(centre); startEditing(centre); }
+      }
+    };
+    // Straight away when the container already has its size, so the first
+    // keys typed land in the new map; otherwise once it has been laid out.
+    if (svg.clientWidth && svg.clientHeight) ready();
+    else requestAnimationFrame(ready);
+  }
+  return { getData, setData, fit, tidyAll, destroy, undo, redo, flush, snapshot: stillMarkup, refresh: render, element: root };
 }
 
-window.TodoCanvas = { create, normalize, COLORS: COLORS.map(c => Object.assign({}, c)) };
+// A still picture of a drawing, for showing it where it isn't being edited.
+// Drawn by a throwaway editor out of sight, so it looks exactly the same.
+function previewMarkup(data) {
+  injectStyles();
+  const host = htmlEl("div", {
+    "aria-hidden": "true",
+    style: "position:fixed;left:-10000px;top:0;width:800px;height:600px;visibility:hidden"
+  });
+  document.body.append(host);
+  try {
+    const c = create(host, { data, still: true });
+    const markup = c.snapshot();
+    c.destroy();
+    return markup;
+  } finally {
+    host.remove();
+  }
+}
+
+window.TodoCanvas = { create, normalize, previewMarkup, COLORS: COLORS.map(c => Object.assign({}, c)) };
 })();
