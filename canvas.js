@@ -424,7 +424,10 @@ function injectStyles() {
     font-family: ${font}; color: var(--ink, #141108); }
   .tc-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   .tc-root.tc-placing .tc-svg { cursor: crosshair; }
+  .tc-root.tc-pan-ready .tc-svg, .tc-root.tc-pan-ready .tc-svg * { cursor: grab !important; }
   .tc-root.tc-panning .tc-svg, .tc-root.tc-panning .tc-svg * { cursor: grabbing !important; }
+  .tc-help { position: absolute; left: 12px; bottom: 14px; max-width: calc(100% - 230px); font-size: 11px;
+    line-height: 1.4; color: #8a8070; pointer-events: none; user-select: none; }
   .tc-node { cursor: move; }
   .tc-shape { stroke-width: 1.5; }
   .tc-fo { pointer-events: none; overflow: visible; }
@@ -512,6 +515,7 @@ function create(container, opts) {
   let editing = null;                     // { node, label, fo, before, fresh } while typing in a box
   let labelEdit = null;                   // { link, before } while typing a line's label
   let lastColor = 0;
+  let spaceHeld = false;                  // Space+drag pans, like Figma and Miro
   let pendingBefore = null;
   const undoStack = [], redoStack = [];
   const isMind = () => data.type === "mindmap";
@@ -575,8 +579,10 @@ function create(container, opts) {
   });
   const emptyHint = htmlEl("div", { class: "tc-empty", hidden: true },
     "Pick a rectangle or an oval on the left, then click the canvas to place it.");
+  const help = htmlEl("div", { class: "tc-help" },
+    "Move around: Ctrl+drag, Space+drag or right-drag \u00b7 Zoom: scroll");
 
-  root.append(svg, emptyHint, tools, zoomBar, ctx, labelInput);
+  root.append(svg, emptyHint, help, tools, zoomBar, ctx, labelInput);
   container.append(root);
 
   /* ---------- lookups and geometry ---------- */
@@ -1623,7 +1629,9 @@ function create(container, opts) {
     finishLabel(true);
     const p = toWorld(e);
 
-    if (e.button === 1 || e.button === 2) {
+    const panning = e.button === 1 || e.button === 2
+      || (e.button === 0 && (e.ctrlKey || e.metaKey || spaceHeld));
+    if (panning) {
       e.preventDefault();
       gesture = { kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
       root.classList.add("tc-panning");
@@ -1703,8 +1711,13 @@ function create(container, opts) {
     render();
   }
 
+  function showPanReady(on) {
+    root.classList.toggle("tc-pan-ready", !!on && !editing);
+  }
+
   function onMove(e) {
     const p = toWorld(e);
+    if (!gesture) showPanReady(e.ctrlKey || e.metaKey || spaceHeld);
     if (!gesture) {
       // Over one of the current box's own dots or buttons: stay on that box,
       // even where they overlap a neighbour.
@@ -1921,6 +1934,21 @@ function create(container, opts) {
   svg.addEventListener("wheel", onWheel, { passive: false });
   svg.addEventListener("contextmenu", e => e.preventDefault());
   root.addEventListener("keydown", onKey);
+  root.addEventListener("keydown", e => {
+    if (editing || e.target === labelInput) return;
+    if (e.key === " ") {
+      e.preventDefault(); // no page scroll, no button press
+      spaceHeld = true;
+      showPanReady(true);
+    } else if (e.key === "Control" || e.key === "Meta") {
+      showPanReady(true);
+    }
+  });
+  root.addEventListener("keyup", e => {
+    if (e.key === " ") spaceHeld = false;
+    if (e.key === " " || e.key === "Control" || e.key === "Meta") showPanReady(spaceHeld);
+  });
+  root.addEventListener("blur", () => { spaceHeld = false; showPanReady(false); });
   const resizeObserver = new ResizeObserver(() => scheduleRender());
   resizeObserver.observe(root);
 

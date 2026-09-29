@@ -411,8 +411,10 @@ new box that's still empty removes it and stops. On a selected box, Tab adds a
 child and Enter a sibling.
 
 Both are mouse-first: click to select, drag empty space to select several,
-right-drag to pan, scroll to zoom, with undo and redo buttons (Delete, Ctrl+Z
-and Ctrl+Y work too).
+and scroll to zoom. To move around, drag with Ctrl held (from anywhere, even
+on a shape), with Space held, or with the right mouse button; the canvas shows
+this in its corner. Undo and redo are buttons (Delete, Ctrl+Z and Ctrl+Y work
+too).
 
 It's a plain script rather than a module, for the same file:// reason as the
 bundled library below, and it knows nothing about Supabase: it's handed a
