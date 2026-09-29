@@ -2680,8 +2680,25 @@ function makeClient(cfg) {
     db: { schema: cfg.schema || "todo" },
     // PKCE: a Google sign-in comes back as a one-time code that only this
     // browser can redeem, rather than as tokens in the address bar.
-    auth: { persistSession: true, autoRefreshToken: true, flowType: "pkce" }
+    auth: { persistSession: true, autoRefreshToken: true, flowType: "pkce" },
+    global: { fetch: fetchPastClockSkew }
   });
+}
+
+// Supabase's sign-in service and its database can disagree about the time by
+// a second or two. The database then turns away a login that was issued a
+// moment ago ("JWT issued at future", PGRST303) until its own clock catches
+// up: right after signing in, and after the login is quietly renewed. Such a
+// request is simply sent again a little later.
+async function fetchPastClockSkew(input, init) {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(input, init);
+    if (res.status !== 401 || attempt > 4) return res;
+    let body = "";
+    try { body = await res.clone().text(); } catch {}
+    if (!/PGRST303|issued at future/i.test(body)) return res;
+    await new Promise(r => setTimeout(r, 1000 * attempt));
+  }
 }
 
 /* ---------- Images ---------- */
