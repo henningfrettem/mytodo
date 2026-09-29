@@ -392,8 +392,11 @@ branch, placed automatically; dragging out from one of its dots grows one in
 another direction. Drag a box to move its whole branch (it turns to face the
 other way if it crosses its parent), drop it on another box to re-attach it,
 fold away the branches on one side of a box (the − on that edge; each side
-folds on its own), or tidy a branch or the whole map. Tab while typing starts
-a branch; Tab and Enter on a selected box add a child and a sibling.
+folds on its own), or tidy a branch or the whole map. While typing, Tab starts
+a branch, Enter the next box on the same level (inserted straight after, with
+room made around it), and Shift+Enter a new line inside the box; Enter on a
+new box that's still empty removes it and stops. On a selected box, Tab adds a
+child and Enter a sibling.
 
 Both are mouse-first: click to select, drag empty space to select several,
 right-drag to pan, scroll to zoom, with undo and redo buttons (Delete, Ctrl+Z

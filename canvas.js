@@ -1299,10 +1299,53 @@ function create(container, opts) {
     selectOnly(n);
     startEditing(n, { fresh: before });
   }
-  function addSibling(n) {
+  // When a box added or grown in a crowded map ends up on top of another,
+  // the branches around it are re-laid out: first its own siblings, then,
+  // only if that isn't enough, further out, one level at a time.
+  // Only overlaps involving the branch in question count, so boxes someone
+  // has deliberately dragged on top of each other elsewhere are left alone.
+  function clashesAround(a) {
+    const inside = new Set([a.id, ...descendants(a).map(d => d.id)]);
+    const boxes = visibleNodes().map(v => [v, geom(v)]);
+    for (const [v, g] of boxes) {
+      if (!inside.has(v.id)) continue;
+      for (const [w, h] of boxes) if (w !== v && overlaps(g, h, -1)) return true;
+    }
+    return false;
+  }
+  function makeRoom(n) {
+    if (!isMind()) return;
+    for (let a = n.parent && nodeById(n.parent); a; a = a.parent && nodeById(a.parent)) {
+      if (!clashesAround(a)) return;
+      layoutKids(a);
+    }
+  }
+
+  // A new box on the same level, straight after this one: same parent, same
+  // side, just below it (or beside it, for branches above or below), with
+  // whatever came after it moved along to make room. It takes the colour of
+  // the box it follows.
+  function addSiblingAfter(n) {
     const parent = n.parent && nodeById(n.parent);
-    if (parent) addChild(parent, n.side);
-    else addChild(n, "right");
+    if (!parent) return;
+    const before = snapshot();
+    const side = n.side;
+    const m = { id: uid(), parent: parent.id, side, x: 0, y: 0, text: "", color: n.color, folded: [] };
+    const s = mindSize("", false);
+    const b = branchBox(n);
+    change(() => {
+      for (const k of childrenOf(parent.id)) {
+        if (k === n || k.side !== side) continue;
+        if (across(side) && k.y > n.y) translateBranch(k, 0, s.h + MM.vGap);
+        if (!across(side) && k.x > n.x) translateBranch(k, s.w + MM.sideGap, 0);
+      }
+      if (across(side)) { m.x = n.x; m.y = b.y1 + MM.vGap + s.h / 2; }
+      else { m.x = b.x1 + MM.sideGap + s.w / 2; m.y = n.y; }
+      data.nodes.push(m);
+      makeRoom(m);
+    });
+    selectOnly(m);
+    startEditing(m, { fresh: before });
   }
   // Moves a branch to a different side, keeping the box where it is.
   function turnBranch(n, side) {
@@ -1436,7 +1479,11 @@ function create(container, opts) {
       render();
       return "discarded";
     }
-    if (nodeById(node.id)) node.text = text;
+    if (nodeById(node.id)) {
+      node.text = text;
+      // It may have grown into a neighbour while being typed in.
+      makeRoom(node);
+    }
     commitFrom(before);
     render();
     return "done";
@@ -1793,12 +1840,23 @@ function create(container, opts) {
     if (editing) {
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finishEditing(); }
       else if (e.key === "Tab" && isMind()) {
-        // Typing a topic, then Tab: on to its first branch. (Enter stays a
-        // line break, since a box can hold several lines.)
+        // Typing a topic, then Tab: on to its first branch.
         e.preventDefault();
         e.stopPropagation();
         const n = editing.node;
         if (finishEditing() !== "discarded" && nodeById(n.id)) addChild(n, n.parent ? n.side : "right");
+      } else if (e.key === "Enter" && isMind() && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing) {
+        // Enter: on to the next box on the same level. Shift+Enter is left to
+        // the browser, and makes a line break inside the box. Enter on a new
+        // box that's still empty takes it back and stops, so Enter, Enter
+        // ends a list; on the central topic, which has no level to share,
+        // it just finishes typing.
+        e.preventDefault();
+        e.stopPropagation();
+        const n = editing.node;
+        if (finishEditing() === "discarded") return;
+        const again = nodeById(n.id);
+        if (again && again.parent) addSiblingAfter(again);
       }
       return;
     }
@@ -1818,7 +1876,8 @@ function create(container, opts) {
     } else if (isMind() && one && e.key === "Enter" && !mod) {
       e.preventDefault();
       e.stopPropagation();
-      addSibling(one);
+      if (one.parent) addSiblingAfter(one);
+      else startEditing(one);
     } else if (e.key === "Escape") {
       if (tool || selNodes.size || selLink) {
         e.preventDefault();
