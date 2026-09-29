@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagram prototype</title>
+<!--
+  A test bench for canvas.js, outside the app. The drawing is kept in this
+  browser's localStorage only; nothing here touches Supabase or your notes.
+-->
+<style>
+  :root {
+    --paper: #faf8f3;
+    --paper-2: #ece7db;
+    --ink: #141108;
+    --ink-2: #2f2a22;
+    --mute: #6a6252;
+    --rule: #cdc3ae;
+    --rule-soft: #ddd4be;
+    --accent: #a0391c;
+    --font-body: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    color: var(--ink);
+    font: 14px/1.5 var(--font-body);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: rgba(243, 237, 224, .75);
+  }
+  h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .hint { flex: 1; font-size: 12px; color: var(--mute); }
+  header button {
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: #fff;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  header button:hover { background: var(--paper-2); }
+  #stage { flex: 1; min-height: 0; }
+</style>
+<script src="canvas.js"></script>
+</head>
+<body>
+<header>
+  <h1>Diagram prototype</h1>
+  <span class="hint">
+    Hover a shape for its four connection dots (drag one to another shape) and the + buttons.
+    Double-click to type. Right-drag to pan, scroll to zoom, drag empty space to select.
+    Saved in this browser only.
+  </span>
+  <button id="reset" type="button">Reset example</button>
+  <button id="clear" type="button">Empty canvas</button>
+</header>
+<div id="stage"></div>
+<script>
+(function () {
+  const KEY = "todo.canvasPrototype";
+  const example = {
+    v: 1, type: "diagram",
+    nodes: [
+      { id: "idea", shape: "oval", x: 0, y: 100, w: 140, h: 80, color: 1, text: "New idea" },
+      { id: "draft", shape: "rect", x: 220, y: 100, w: 160, h: 80, color: 0, text: "Draft a short plan" },
+      { id: "review", shape: "rect", x: 460, y: 100, w: 160, h: 80, color: 3, text: "Review with the team" },
+      { id: "ship", shape: "oval", x: 700, y: 100, w: 140, h: 80, color: 2, text: "Ship it" },
+      { id: "rework", shape: "rect", x: 460, y: 280, w: 160, h: 80, color: 4, text: "Rework the plan" },
+      { id: "input1", shape: "rect", x: 220, y: -80, w: 140, h: 60, color: 0, text: "Customer feedback" },
+      { id: "input2", shape: "rect", x: 400, y: -80, w: 140, h: 60, color: 0, text: "Usage numbers" }
+    ],
+    links: [
+      { id: "l1", from: { node: "idea", side: "right" }, to: { node: "draft", side: "left" }, style: "elbow", arrow: "end", label: "" },
+      { id: "l2", from: { node: "draft", side: "right" }, to: { node: "review", side: "left" }, style: "elbow", arrow: "end", label: "" },
+      { id: "l3", from: { node: "review", side: "right" }, to: { node: "ship", side: "left" }, style: "elbow", arrow: "end", label: "approved" },
+      { id: "l4", from: { node: "review", side: "bottom" }, to: { node: "rework", side: "top" }, style: "elbow", arrow: "end", label: "changes" },
+      { id: "l5", from: { node: "rework", side: "left" }, to: { node: "draft", side: "bottom" }, style: "elbow", arrow: "end", label: "" },
+      { id: "l6", from: { node: "input1", side: "bottom" }, to: { node: "draft", side: "top" }, style: "curved", arrow: "none", label: "" },
+      { id: "l7", from: { node: "input2", side: "bottom" }, to: { node: "draft", side: "top" }, style: "curved", arrow: "none", label: "" }
+    ]
+  };
+
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+
+  const canvas = TodoCanvas.create(document.getElementById("stage"), {
+    data: saved || example,
+    onChange(data) {
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    }
+  });
+  window.canvas = canvas;
+
+  document.getElementById("reset").addEventListener("click", () => {
+    canvas.setData(example);
+    canvas.fit();
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  });
+  document.getElementById("clear").addEventListener("click", () => {
+    canvas.setData({ nodes: [], links: [] });
+    canvas.fit();
+    try { localStorage.setItem(KEY, JSON.stringify(canvas.getData())); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>
