@@ -1808,6 +1808,14 @@ function create(container, opts) {
   }
 
   svg.addEventListener("pointerdown", onDown);
+  // A press on the canvas would otherwise move focus once the event is over,
+  // taking it away from a box that has just been added and is waiting for
+  // text, which then counts as left empty. onDown focuses what it needs.
+  // Inside the text being typed the press is left alone, to place the caret.
+  svg.addEventListener("mousedown", e => {
+    if (editing && editing.label.contains(e.target)) return;
+    e.preventDefault();
+  });
   svg.addEventListener("pointermove", onMove);
   svg.addEventListener("pointerup", onUp);
   svg.addEventListener("pointercancel", onUp);
