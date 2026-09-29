@@ -177,14 +177,6 @@
   .login-form .btn { justify-content: center; padding: 11px 16px; }
   .google-signin { max-width: 340px; margin-bottom: 14px; }
   .google-signin .btn { width: 100%; justify-content: center; padding: 11px 16px; background: var(--card); }
-  .link-btn {
-    margin-top: 14px;
-    font-size: 12.5px;
-    color: var(--mute);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  .link-btn:hover { color: var(--ink-2); }
   .welcome-error {
     margin-top: 16px;
     padding: 10px 12px;
@@ -1946,7 +1938,6 @@
         address, so a copy opened from a file can't sign in. Open the app where
         it's hosted instead.
       </p>
-      <button id="btn-reconfigure" class="link-btn">Use a different project</button>
     </div>
 
     <div id="welcome-error" class="welcome-error" hidden></div>
@@ -2345,7 +2336,6 @@ function loadConfig() {
   try { return JSON.parse(localStorage.getItem(CFG_KEY) || "null"); } catch { return null; }
 }
 function saveConfig(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
-function clearConfig() { localStorage.removeItem(CFG_KEY); }
 
 let sb = null;
 let userId = null;
@@ -6538,17 +6528,6 @@ $("#setup-form").addEventListener("submit", e => {
   sb = makeClient(cfg);
   showWelcome("login");
   if (canSignIn()) setTimeout(() => $("#btn-google").focus(), 10);
-});
-
-$("#btn-reconfigure").addEventListener("click", () => {
-  clearConfig();
-  if (fileConfig()) {
-    welcomeFail("config.local.js is setting the project. Edit or delete that file to change it.");
-    return;
-  }
-  welcomeError.hidden = true;
-  showWelcome("setup");
-  setTimeout(() => $("#setup-url").focus(), 10);
 });
 
 $("#btn-signout").addEventListener("click", async () => {
