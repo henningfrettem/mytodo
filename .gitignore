@@ -17,3 +17,6 @@ supabase-check.html
 
 # Local Supabase connection details (see config.local.example.js)
 config.local.js
+
+# The hosted site, built by deploy/build.js
+dist/

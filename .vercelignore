@@ -1,0 +1,8 @@
+# Never uploaded, even by a deploy straight from this folder with the Vercel
+# CLI: deploy/build.js copies only the app's own files anyway, but these
+# shouldn't leave the machine at all.
+config.local.js
+todos.json
+assets/
+supabase-check.html
+dist/

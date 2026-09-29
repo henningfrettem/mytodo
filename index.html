@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#faf8f3">
 <meta name="application-name" content="Todo">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Todo</title>
 <script>
 (function () {
@@ -21,19 +22,26 @@
   favicon.href = iconUrl;
   document.head.appendChild(favicon);
 
-  const manifest = {
-    name: "Todo",
-    short_name: "Todo",
-    display: "standalone",
-    background_color: "#faf8f3",
-    theme_color: "#faf8f3",
-    start_url: ".",
-    icons: [{ src: iconUrl, sizes: "any", type: "image/svg+xml", purpose: "any" }]
-  };
-  const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+  // Served from a web address, the app has a real manifest file beside it,
+  // with proper icons, so it installs as an app. A page opened from file://
+  // can't read a file beside it, so it makes its own.
   const manifestLink = document.createElement("link");
   manifestLink.rel = "manifest";
-  manifestLink.href = URL.createObjectURL(blob);
+  if (location.protocol === "file:") {
+    const manifest = {
+      name: "Todo",
+      short_name: "Todo",
+      display: "standalone",
+      background_color: "#faf8f3",
+      theme_color: "#faf8f3",
+      start_url: ".",
+      icons: [{ src: iconUrl, sizes: "any", type: "image/svg+xml", purpose: "any" }]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+    manifestLink.href = URL.createObjectURL(blob);
+  } else {
+    manifestLink.href = "manifest.webmanifest";
+  }
   document.head.appendChild(manifestLink);
 })();
 </script>

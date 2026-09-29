@@ -2,7 +2,8 @@
 
 A single-file todo board with a notes pane, backed by Supabase. Still one `index.html` you open
 straight off disk — no server, no build step, no npm — but the data now lives in
-Postgres rather than a file next to it.
+Postgres rather than a file next to it. It can also be hosted, for example on
+Vercel, and installed as an app.
 
 ## Running it
 
@@ -49,9 +50,50 @@ The shortcut deliberately does *not* pass `--user-data-dir`. The app window need
 the ordinary Chrome profile: its own profile would mean its own `localStorage`,
 so a fresh setup screen and a lost session on every launch.
 
-Hosting the file instead — any static host, no build step — would make it a real
-installable PWA on desktop and phone, since the app already needs the network for
-Supabase anyway.
+Hosting it instead (below) makes it a real installable app on desktop and phone.
+
+## Hosting it (Vercel)
+
+The same files can be served from the web, which makes the app installable
+(Chrome and Edge: the install icon in the address bar; iPhone: Share → Add to
+Home Screen) and reachable from any device. It's just as quick once open:
+everything after the page loads runs in the browser exactly as it does off
+disk, talking straight to Supabase. The host only hands out the files.
+
+`vercel.json` has Vercel run `deploy/build.js`, which copies the app's own
+files, by name and nothing else, into `dist/`, and writes the site's
+`config.local.js` from the Vercel project's environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `SUPABASE_URL` | `https://<project>.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | the publishable key, `sb_publishable_…` |
+| `SUPABASE_SCHEMA` | optional, `todo` by default |
+
+These two are public by design: every visitor's browser receives them, and
+row-level security is what keeps the data private. The build refuses a secret
+or `service_role` key. No email or password is ever put on the site; you sign
+in once per browser and the session is kept. Your own `config.local.js` is
+never deployed: `.vercelignore` keeps it from being uploaded at all, and the
+build wouldn't copy it anyway.
+
+The site also asks search engines not to index it, and refuses to be shown
+inside another site's frame.
+
+To set it up:
+
+1. **Supabase → Authentication**: check that *Allow new users to sign up* is
+   off. Once the site is up, the project URL and key are visible to anyone who
+   opens it. Under **URL Configuration**, set the Site URL to the site's
+   address.
+2. **Vercel → Add New → Project**: import this repository. Leave the framework
+   as *Other*, since `vercel.json` sets up the build. Add the environment
+   variables above, then deploy.
+3. **Project → Settings → Domains**: add your domain. If its DNS is hosted
+   elsewhere, add the CNAME record Vercel shows at your DNS provider. The HTTPS
+   certificate follows by itself.
+
+After that, every push to the production branch (`main`) goes live.
 
 ## Setting up a fresh project
 
