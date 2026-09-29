@@ -1736,17 +1736,26 @@ function create(container, opts) {
     render();
   }
 
+  // The pointer is captured on each press so drags keep tracking, which makes
+  // the browser aim the double-click at the whole canvas rather than at the
+  // box under the pointer. So what was double-clicked is looked up by
+  // position instead of trusting the event's target.
   function onDouble(e) {
-    const nodeEl = e.target.closest("[data-node]");
-    if (nodeEl && !e.target.closest("[data-plus], [data-anchor], [data-fold]")) {
-      const n = nodeById(nodeEl.dataset.node);
-      if (n) { selectOnly(n); startEditing(n); }
-      return;
-    }
-    const linkEl = e.target.closest("[data-link]");
-    if (linkEl) {
-      const l = linkById(linkEl.dataset.link);
-      if (l) startLabel(l);
+    for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
+      if (!svg.contains(el)) continue;
+      if (el.closest("[data-plus], [data-anchor], [data-fold], [data-handle], [data-end]")) return;
+      const nodeEl = el.closest("[data-node]");
+      if (nodeEl) {
+        const n = nodeById(nodeEl.dataset.node);
+        if (n) { selectOnly(n); startEditing(n); }
+        return;
+      }
+      const linkEl = el.closest("[data-link]");
+      if (linkEl) {
+        const l = linkById(linkEl.dataset.link);
+        if (l) startLabel(l);
+        return;
+      }
     }
   }
 
