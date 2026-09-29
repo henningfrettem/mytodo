@@ -84,8 +84,8 @@ To set it up:
 
 1. **Supabase → Authentication**: check that *Allow new users to sign up* is
    off. Once the site is up, the project URL and key are visible to anyone who
-   opens it. Under **URL Configuration**, set the Site URL to the site's
-   address.
+   opens it. (Password sign-in needs nothing else there: the Site URL and
+   Redirect URLs only matter for email links and sign-in providers.)
 2. **Vercel → Add New → Project**: import this repository. Leave the framework
    as *Other*, since `vercel.json` sets up the build. Add the environment
    variables above, then deploy.
