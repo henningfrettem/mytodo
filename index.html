@@ -919,6 +919,16 @@
     transition: color .12s, background .12s;
   }
   .modal-private:hover { color: var(--accent); background: var(--accent-ghost); }
+  .modal-link {
+    position: absolute;
+    top: 10px;
+    right: 130px;
+    z-index: 2;
+    color: var(--mute-2);
+    transition: color .12s, background .12s;
+  }
+  .modal-link:hover { color: var(--accent); background: var(--accent-ghost); }
+  .modal-link.note-link-btn { right: 90px; }
   .modal-private.on { color: var(--accent); }
   .modal-star:hover { color: var(--accent); background: var(--accent-ghost); }
   .modal-star.on { color: var(--accent); }
@@ -1042,7 +1052,7 @@
     width: 100%;
     border: 0;
     outline: none;
-    padding: 26px 126px 8px 30px;
+    padding: 26px 166px 8px 30px;
     font-family: var(--font-display);
     font-size: 22px;
     font-weight: 500;
@@ -1604,11 +1614,11 @@
   }
   .note-panel:focus { outline: none; }
   .modal-private.note-private-btn { right: 50px; }
-  .note-heading { padding-right: 96px; }
+  .note-heading { padding-right: 126px; }
   .note-heading.invalid { box-shadow: inset 0 -2px 0 var(--err); }
   .note-heading-hint { padding: 0 30px 8px; font-size: 12px; color: var(--err); }
   .note-archived-banner {
-    margin: 18px 96px 0 30px;
+    margin: 18px 126px 0 30px;
     padding: 6px 10px;
     border-radius: var(--radius);
     background: var(--paper-2);
@@ -1702,6 +1712,11 @@
   .entry-ago { color: var(--mute-2); }
   .entry-del { margin-left: auto; width: 26px; height: 26px; opacity: 0; }
   .entry:hover .entry-del, .entry-del:focus-visible { opacity: 1; }
+  .entry-link { margin-left: auto; width: 26px; height: 26px; opacity: 0; }
+  .entry-link + .entry-del { margin-left: 0; }
+  .entry:hover .entry-link, .entry-link:focus-visible { opacity: 1; }
+  .entry-link:hover { color: var(--accent); background: var(--accent-ghost); }
+  .entry.flash { animation: item-flash 1.6s var(--r); }
   .entry-del:hover { color: var(--err); background: rgba(139, 46, 31, .08); }
   .entry-body {
     margin: 0 -12px;
@@ -1912,7 +1927,7 @@
     .column-actions, .nc-actions { opacity: 1; }
     .column-grip { opacity: .8; }
     .entry-grip { opacity: .6; }
-    .entry-del { opacity: .7; }
+    .entry-del, .entry-link { opacity: .7; }
     .dropdown-item { min-height: 40px; }
   }
 
@@ -2100,6 +2115,8 @@
     .modal-star { top: 8px; right: 52px; }
     .modal-private { top: 8px; right: 96px; }
     .modal-private.note-private-btn { right: 52px; }
+    .modal-link { top: 8px; right: 140px; }
+    .modal-link.note-link-btn { right: 96px; }
     .task-footer {
       display: flex;
       flex-wrap: wrap;
@@ -2113,7 +2130,7 @@
     .select, .due-input { height: 40px; }
 
     /* Task window */
-    .task-subject-input { padding: 16px 144px 8px 16px; font-size: 20px; }
+    .task-subject-input { padding: 16px 184px 8px 16px; font-size: 20px; }
     .md-toolbar { gap: 6px; padding: 0 8px 8px 10px; }
     .md-tab { padding: 10px; font-size: 12px; }
     .md-tab.active::after { bottom: -9px; }
@@ -2156,8 +2173,8 @@
     .confirm-actions .btn { height: 44px; padding: 0 18px; font-size: 14px; }
 
     /* Note window */
-    .note-heading { padding: 16px 100px 8px 16px; font-size: 20px; }
-    .note-archived-banner { margin: 12px 100px 0 16px; }
+    .note-heading { padding: 16px 140px 8px 16px; font-size: 20px; }
+    .note-archived-banner { margin: 12px 140px 0 16px; }
     .note-archived-banner + .note-heading { padding-top: 10px; }
     .note-heading-hint { padding: 0 16px 8px; }
     .note-bar { flex-wrap: wrap; gap: 6px; padding: 2px 10px 8px 16px; }
@@ -2170,6 +2187,7 @@
     .note-entries { padding-bottom: 16px; }
     .entry { padding: 10px 16px 12px; }
     .entry-head { height: 36px; font-size: 12.5px; }
+    .entry-link { width: 38px; height: 38px; }
     .entry-del { width: 38px; height: 38px; margin-right: -8px; }
     .entry-body { margin: 0 -8px; padding: 6px 8px; font-size: 16px; }
     .entry-body:hover { background: transparent; }
@@ -2379,6 +2397,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
     <button class="iconbtn modal-private" id="task-private-modal" aria-label="Mark private" title="Mark private"></button>
+    <button class="iconbtn modal-link" id="task-link" aria-label="Copy a link to this card" title="Copy a link to this card"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
     <button class="iconbtn modal-star" id="task-star-modal" aria-label="Mark important" title="Mark important">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     </button>
@@ -2489,6 +2508,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
     <button class="iconbtn modal-private note-private-btn" id="note-private" aria-label="Mark private" title="Mark private"></button>
+    <button class="iconbtn modal-link note-link-btn" id="note-link" aria-label="Copy a link to this note" title="Copy a link to this note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
     <div class="note-archived-banner" id="note-archived-banner" hidden></div>
     <textarea id="note-heading" class="task-subject-input note-heading" placeholder="Heading" rows="1" maxlength="200" spellcheck="false"></textarea>
     <div class="note-heading-hint" id="note-heading-hint" hidden>Every note needs a heading.</div>
@@ -5951,12 +5971,17 @@ function entryShell(note, entry, body) {
     class: "iconbtn entry-del", title: "Delete entry", "aria-label": "Delete entry",
     onclick: () => deleteNoteEntry(note, entry)
   }, svg("trash", 13, 13));
+  const link = el("button", {
+    class: "iconbtn entry-link", title: "Copy a link to this entry", "aria-label": "Copy a link to this entry",
+    onclick: () => copyItemLink("entry", entry.id)
+  }, svg("link", 13, 13));
 
   art.append(grip,
     el("div", { class: "entry-head" },
       el("time", { class: "entry-time", datetime: entry.createdAt }, entryStamp(entry.createdAt)),
       el("span", { class: "entry-ago" }, entryAgo(entry.createdAt)),
       isDrawing(entry) ? el("span", { class: "entry-kind" }, DRAWING_LABEL[entry.kind]) : null,
+      link,
       del),
     body);
   return art;
@@ -6847,6 +6872,116 @@ function goToNoteItem(note, taskId) {
   setTimeout(() => li.classList.remove("flash"), 1600);
 }
 
+/* ---------- Links to cards, notes and entries ---------- */
+// Every card, note and entry has an address: the app's own, with the item
+// after the # (#card=..., #note=..., #entry=...). Opened from anywhere, it
+// lands on that item once the board has loaded, after signing in if need be.
+// The # part is read and then taken off, so a reload doesn't open it again;
+// until the board is there it waits in sessionStorage, which a Google
+// sign-in's round trip through the same tab keeps.
+const PENDING_LINK_KEY = "todo.pendingLink";
+const LINK_WORDS = { card: "card", note: "note", entry: "entry" };
+
+function itemLink(kind, id) {
+  return location.origin + location.pathname + "#" + kind + "=" + encodeURIComponent(id);
+}
+function parseItemLink(hash) {
+  const m = /^#(card|note|entry)=([\w%-]+)$/.exec(hash || "");
+  return m ? { kind: m[1], id: decodeURIComponent(m[2]) } : null;
+}
+async function copyItemLink(kind, id) {
+  if (!id) return;
+  try {
+    await navigator.clipboard.writeText(itemLink(kind, id));
+    toast(`Link to this ${LINK_WORDS[kind]} copied`, { duration: 2500 });
+  } catch (e) {
+    toast("Couldn't copy the link: " + (e.message || e));
+  }
+}
+
+// A link in the address (or handed over by the installed app): open it now if
+// the board is loaded, or keep it for when it is.
+function receiveItemLink(link) {
+  if (!link) return;
+  if (state) openItemLink(link);
+  else sessionStorage.setItem(PENDING_LINK_KEY, JSON.stringify(link));
+}
+function takeLinkFromAddress() {
+  const link = parseItemLink(location.hash);
+  if (!link) return;
+  history.replaceState(history.state, "", location.pathname + location.search);
+  receiveItemLink(link);
+}
+function openPendingLink() {
+  let link = null;
+  try { link = JSON.parse(sessionStorage.getItem(PENDING_LINK_KEY) || "null"); } catch {}
+  sessionStorage.removeItem(PENDING_LINK_KEY);
+  if (link) openItemLink(link);
+}
+
+function showFolderOf(folder) {
+  if (folder && folder.id !== state.activeFolderId) {
+    state.activeFolderId = folder.id;
+    save();
+    renderBoard();
+  }
+}
+// Out of the way first: whatever else is open.
+function clearWindowsFor(kind) {
+  if (!quickModal.hidden) closeQuickAdd();
+  if (!foldersModal.hidden) closeFoldersModal();
+  if (!categoryModal.hidden) closeCategoryModal();
+  if (searchOpen()) closeSearch();
+  if (!taskModal.hidden) closeTaskModal();
+  // A card opens over a note, but a note replaces one (and may refuse to
+  // close while it has no heading, in which case the link waits).
+  if (kind !== "card" && !noteModal.hidden) return closeNoteModal();
+  return true;
+}
+
+function openItemLink({ kind, id }) {
+  if (!state || !LINK_WORDS[kind]) return;
+  if (kind === "card") {
+    const task = state.tasks.find(t => t.id === id);
+    const folder = task && state.folders.find(f => (f.categories || []).some(c => c.id === task.categoryId));
+    if (!task || !folder) { toast("That card doesn't exist any more."); return; }
+    clearWindowsFor("card");
+    showFolderOf(folder);
+    openTaskModal(task);
+    return;
+  }
+  const note = kind === "note"
+    ? state.notes.find(x => x.id === id)
+    : state.notes.find(x => x.entries.some(e => e.id === id));
+  const found = note && findNoteCategory(note.categoryId);
+  if (!note || !found) { toast(`That ${LINK_WORDS[kind]} doesn't exist any more.`); return; }
+  if (openNoteId !== note.id) {
+    if (!clearWindowsFor(kind)) return;
+    showFolderOf(found.folder);
+    openNoteModal(note);
+  } else {
+    clearWindowsFor("card"); // the note is already open; anything over it goes
+  }
+  if (kind === "entry") {
+    const art = noteEntriesEl.querySelector(`.entry[data-entry-id="${CSS.escape(id)}"]`);
+    if (!art) return;
+    art.scrollIntoView({ block: "center" });
+    art.classList.add("flash");
+    setTimeout(() => art.classList.remove("flash"), 1600);
+  }
+}
+
+$("#task-link").addEventListener("click", () => copyItemLink("card", openTaskId));
+$("#note-link").addEventListener("click", () => copyItemLink("note", openNoteId));
+window.addEventListener("hashchange", takeLinkFromAddress);
+// The installed app (Chrome, with its "open supported links" setting on) is
+// handed a link without reloading; see launch_handler in the manifest.
+if ("launchQueue" in window) {
+  window.launchQueue.setConsumer(params => {
+    if (params.targetURL) receiveItemLink(parseItemLink(new URL(params.targetURL).hash));
+  });
+}
+
 // One "open card" button for the whole window, placed over whichever linked
 // line the pointer is on. It lives outside the entry so it's never part of
 // the text.
@@ -7229,6 +7364,7 @@ async function startApp(user) {
     appRoot.hidden = false;
     fileName.textContent = user.email || "signed in";
     startLive((loadConfig() || {}).schema || "todo");
+    openPendingLink();
     renderBoard();
     updateFolderLabel();
     setFileStatus("saved");
@@ -7240,6 +7376,7 @@ async function startApp(user) {
 }
 
 async function boot() {
+  takeLinkFromAddress();
   let authError = takeAuthError();
   const cfg = loadConfig();
   if (!cfg) { showWelcome("setup"); setTimeout(() => $("#setup-url").focus(), 10); return; }
@@ -7288,6 +7425,7 @@ function svg(name, w = 16, h = 16) {
   const paths = {
     check: `<polyline points="20 6 9 17 4 12" stroke-width="2.5"/>`,
     x: `<path d="M18 6 6 18M6 6l12 12"/>`,
+    link: `<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>`,
     plus: `<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`,
     trash: `<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>`,
     "chevron-right": `<polyline points="9 6 15 12 9 18"/>`,

@@ -351,6 +351,26 @@ reference to them.
 Worth doing occasionally. The free Supabase tier takes no automatic backups, so
 this export is the only copy of your data that isn't in the database.
 
+## Links to cards, notes and entries
+
+Every card, note and note entry has its own link. The link icon at the top of
+a card's or a note's window, or in an entry's header (on the desktop it shows
+when the pointer is over the entry), copies it. The link is the app's address
+with the item after a `#` (`#card=…`, `#note=…`, `#entry=…`), so it can be
+pasted anywhere: a chat, an email, another app.
+
+Opening one lands on that item: the app switches to its folder and opens the
+card or note, or opens the note and scrolls to the entry. Signed out, it asks
+you to sign in first and then opens the item. The `#` part is taken off the
+address once read, so a reload doesn't open it again. A link to something since
+deleted says so.
+
+Where a link opens is up to the device. On a computer with the app installed
+from Chrome, links open in the app's own window if its *Open supported links*
+setting is on (the manifest's `launch_handler` hands the link to the window
+that's already open); otherwise in a browser tab. On an iPhone they open in
+Safari, since iOS doesn't send links to home-screen apps.
+
 ## Keyboard shortcuts
 
 | Key | Action |
