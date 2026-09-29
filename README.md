@@ -371,6 +371,38 @@ a date restores the manual order exactly.
 `due_date` is a plain date with no time or zone, so "due today" means today
 wherever you are.
 
+## Diagrams and mind maps (in progress)
+
+`canvas.js` is a home-grown drawing editor, on its way to becoming a new kind of
+note entry. It isn't wired into notes yet: open `canvas-prototype.html` to try
+it. That page keeps its drawings in the browser's localStorage and never touches
+your notes.
+
+**Diagrams** are drawn by hand, in the style of Miro. Rectangles (with only
+slightly softened corners) and ovals sit on a snapping grid, in 5 colours, and
+can be resized. Each shape has four connection dots: drag one onto another
+shape to connect them (a dot can take any number of lines), or into open space
+for a new connected shape; the + beside each side adds a connected copy. Lines
+are right-angled, straight or curved, arrows at one end, both or neither, and
+can carry a label. Text shrinks to fit its shape.
+
+**Mind maps** are a tree around a central topic, with boxes that size
+themselves to their text (several lines allowed). The + on a box adds a
+branch, placed automatically; dragging out from one of its dots grows one in
+another direction. Drag a box to move its whole branch (it turns to face the
+other way if it crosses its parent), drop it on another box to re-attach it,
+fold a branch away, or tidy a branch or the whole map. Tab while typing starts
+a branch; Tab and Enter on a selected box add a child and a sibling.
+
+Both are mouse-first: click to select, drag empty space to select several,
+right-drag to pan, scroll to zoom, with undo and redo buttons (Delete, Ctrl+Z
+and Ctrl+Y work too).
+
+It's a plain script rather than a module, for the same file:// reason as the
+bundled library below, and it knows nothing about Supabase: it's handed a
+drawing as plain data and reports every finished change, and whatever embeds
+it does the saving.
+
 ## A note on the bundled library
 
 `index.html` contains supabase-js v2.116.0 inlined verbatim as a UMD bundle,

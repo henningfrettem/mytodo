@@ -1,4 +1,4 @@
-/* canvas.js — a home-grown diagram canvas for the Todo notes.
+/* canvas.js — a home-grown drawing canvas for the Todo notes.
  *
  * A classic script rather than an ES module, because modules are refused on
  * file:// and the app is opened straight off disk. It exposes one global,
@@ -7,14 +7,25 @@
  * onChange. Saving is the caller's business.
  *
  *   const c = TodoCanvas.create(element, { data, onChange(data) {} });
- *   c.getData(); c.setData(data); c.fit(); c.refresh(); c.destroy();
+ *   c.getData(); c.setData(data); c.fit(); c.tidyAll(); c.refresh(); c.destroy();
  *
- * A drawing is plain data, so it can be stored as JSON:
+ * Two kinds of drawing, both plain data that can be stored as JSON.
+ *
+ * A diagram, drawn by hand on a grid:
  *   { v: 1, type: "diagram",
  *     nodes: [{ id, shape: "rect" | "oval", x, y, w, h, color: 0-4, text }],
  *     links: [{ id, from: { node, side }, to: { node, side },
  *               style: "elbow" | "straight" | "curved",
  *               arrow: "end" | "both" | "none", label }] }
+ *
+ * A mind map, a tree whose boxes size themselves to their text:
+ *   { v: 1, type: "mindmap",
+ *     nodes: [{ id, parent, side, x, y, text, color: 0-4, folded }] }
+ *   One node has parent null: the central topic. Every other node hangs off
+ *   its parent's `side`, and (x, y) is the point where its line meets it:
+ *   the middle of its left edge for a node on the right, and so on. That way
+ *   a box grows away from its parent as you type.
+ *
  * Sides are "top", "right", "bottom" and "left".
  */
 (function () {
@@ -25,12 +36,24 @@ const GRID = 20;
 const MIN_W = 40, MIN_H = 40;
 const NEW_W = 160, NEW_H = 80;
 const TEXT_MAX = 14, TEXT_MIN = 6;
-const PAD = 6;           // text margin inside a shape: kept small on purpose
+const PAD = 6;           // text margin inside a diagram shape: kept small on purpose
 const RADIUS = 6;        // a rectangle's corners: square, just softened
 const BEND = 6;          // the same softening on a right-angled line's bends
 const STUB = 20;         // straight run out of a connection point before any bend
 const ZOOM_MIN = 0.2, ZOOM_MAX = 3;
 const HISTORY = 100;
+
+// Mind maps: box padding, fonts and the gaps automatic placement leaves.
+const MM = {
+  font: 13, rootFont: 15, lineHeight: 1.3,
+  padX: 10, padY: 6, rootPadX: 16, rootPadY: 10,
+  maxText: 220, rootMaxText: 260, minW: 44, rootMinW: 90,
+  radius: 8,
+  hGap: 56,       // parent to child, sideways
+  vGap: 12,       // between siblings stacked on the left or right
+  crossGap: 40,   // parent to child, up or down
+  sideGap: 16     // between siblings side by side above or below
+};
 
 const COLORS = [
   { name: "White", fill: "#ffffff", stroke: "#bdb29a" },
@@ -39,11 +62,12 @@ const COLORS = [
   { name: "Sky",   fill: "#dce8f6", stroke: "#86a8d1" },
   { name: "Rose",  fill: "#f8ded6", stroke: "#d4907b" }
 ];
-const SIDES = ["top", "right", "bottom", "left"];
+const SIDES = ["top", "right", "bottom", "left"];   // clockwise
 const NORMAL = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
 const OPPOSITE = { top: "bottom", bottom: "top", left: "right", right: "left" };
 const STYLES = ["elbow", "straight", "curved"];
 const ARROWS = ["end", "both", "none"];
+const across = side => side === "left" || side === "right";
 
 /* ---------- small helpers ---------- */
 const snap = v => Math.round(v / GRID) * GRID;
@@ -69,33 +93,39 @@ function htmlEl(tag, attrs, ...kids) {
   return n;
 }
 
-function anchorPoint(n, side) {
+// Geometry below takes any box { x, y, w, h }.
+function anchorPoint(r, side) {
   switch (side) {
-    case "top": return { x: n.x + n.w / 2, y: n.y };
-    case "right": return { x: n.x + n.w, y: n.y + n.h / 2 };
-    case "bottom": return { x: n.x + n.w / 2, y: n.y + n.h };
-    default: return { x: n.x, y: n.y + n.h / 2 };
+    case "top": return { x: r.x + r.w / 2, y: r.y };
+    case "right": return { x: r.x + r.w, y: r.y + r.h / 2 };
+    case "bottom": return { x: r.x + r.w / 2, y: r.y + r.h };
+    default: return { x: r.x, y: r.y + r.h / 2 };
   }
 }
-function nearestSide(n, p) {
+function nearestSide(r, p) {
   let best = "top", d = Infinity;
   for (const s of SIDES) {
-    const q = dist(anchorPoint(n, s), p);
+    const q = dist(anchorPoint(r, s), p);
     if (q < d) { d = q; best = s; }
   }
   return best;
 }
-// The side of a node that faces a point, by the dominant direction.
-function sideFacing(n, p) {
-  const dx = p.x - (n.x + n.w / 2), dy = p.y - (n.y + n.h / 2);
+// The side of a box that faces a point, by the dominant direction.
+function sideFacing(r, p) {
+  const dx = p.x - (r.x + r.w / 2), dy = p.y - (r.y + r.h / 2);
   return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "bottom" : "top");
 }
 function overlaps(a, b, m) {
   return a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y;
 }
 
+/* ---------- normalising stored data ---------- */
 function normalize(input) {
   const d = input && typeof input === "object" ? JSON.parse(JSON.stringify(input)) : {};
+  return d.type === "mindmap" ? normalizeMind(d) : normalizeDiagram(d);
+}
+
+function normalizeDiagram(d) {
   const nodes = (Array.isArray(d.nodes) ? d.nodes : []).filter(n => n && n.id != null).map(n => ({
     id: String(n.id),
     shape: n.shape === "oval" ? "oval" : "rect",
@@ -120,7 +150,45 @@ function normalize(input) {
   return { v: 1, type: "diagram", nodes, links };
 }
 
-/* ---------- text that shrinks to fit ---------- */
+// Always exactly one central topic, and a tree: anything orphaned or caught
+// in a loop hangs off the centre instead.
+function normalizeMind(d) {
+  const nodes = (Array.isArray(d.nodes) ? d.nodes : []).filter(n => n && n.id != null).map(n => ({
+    id: String(n.id),
+    parent: n.parent != null ? String(n.parent) : null,
+    side: SIDES.includes(n.side) ? n.side : "right",
+    x: +n.x || 0,
+    y: +n.y || 0,
+    text: typeof n.text === "string" ? n.text : "",
+    color: clamp(n.color | 0, 0, COLORS.length - 1),
+    folded: !!n.folded
+  }));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  let root = nodes.find(n => n.parent == null) || null;
+  if (!root) {
+    root = { id: uid(), parent: null, side: null, x: 0, y: 0, text: "", color: 1, folded: false };
+    nodes.unshift(root);
+    byId.set(root.id, root);
+  }
+  root.parent = null;
+  root.side = null;
+  for (const n of nodes) {
+    if (n !== root && (n.parent == null || !byId.has(n.parent) || n.parent === n.id)) n.parent = root.id;
+  }
+  for (const n of nodes) {
+    if (n === root) continue;
+    const seen = new Set([n.id]);
+    let p = byId.get(n.parent);
+    while (p && p.parent != null) {
+      if (seen.has(p.id)) { n.parent = root.id; break; }
+      seen.add(p.id);
+      p = byId.get(p.parent);
+    }
+  }
+  return { v: 1, type: "mindmap", nodes };
+}
+
+/* ---------- diagram text that shrinks to fit ---------- */
 let measurer = null;
 const fitCache = new Map();
 
@@ -157,6 +225,49 @@ function fitFont(text, w, h) {
   return size;
 }
 
+/* ---------- mind map boxes that size themselves ---------- */
+let mmMeasurer = null;
+const mmCache = new Map();
+
+function mindSize(text, isRoot) {
+  const key = (isRoot ? "R" : "N") + "\u0000" + text;
+  const hit = mmCache.get(key);
+  if (hit) return hit;
+  if (!mmMeasurer) {
+    mmMeasurer = htmlEl("div", { class: "tc-mm-measure", "aria-hidden": "true" });
+    document.body.append(mmMeasurer);
+  }
+  mmMeasurer.style.fontSize = (isRoot ? MM.rootFont : MM.font) + "px";
+  mmMeasurer.style.fontWeight = isRoot ? "600" : "400";
+  mmMeasurer.style.maxWidth = (isRoot ? MM.rootMaxText : MM.maxText) + "px";
+  // A trailing line break only takes up room once something follows it, but
+  // while typing the box should already have grown for the new line.
+  const t = text || "";
+  mmMeasurer.textContent = t + (t === "" || t.endsWith("\n") ? "​" : "");
+  const r = mmMeasurer.getBoundingClientRect();
+  const padX = isRoot ? MM.rootPadX : MM.padX, padY = isRoot ? MM.rootPadY : MM.padY;
+  const size = {
+    w: Math.max(isRoot ? MM.rootMinW : MM.minW, Math.ceil(r.width) + 1 + padX * 2),
+    h: Math.ceil(r.height) + padY * 2,
+    padX, padY
+  };
+  if (mmCache.size > 3000) mmCache.clear();
+  mmCache.set(key, size);
+  return size;
+}
+
+// Maps sides when a branch changes direction. Swapping to the opposite side
+// mirrors (keeping the order of what's in it); a quarter turn rotates.
+function sideMap(from, to) {
+  if (from === to) return s => s;
+  if (OPPOSITE[from] === to) {
+    const pair = across(from) ? ["left", "right"] : ["top", "bottom"];
+    return s => s === pair[0] ? pair[1] : s === pair[1] ? pair[0] : s;
+  }
+  const k = (SIDES.indexOf(to) - SIDES.indexOf(from) + 4) % 4;
+  return s => SIDES[(SIDES.indexOf(s) + k) % 4];
+}
+
 /* ---------- line geometry ---------- */
 function simplify(pts) {
   const out = [];
@@ -184,7 +295,7 @@ function isOrthogonal(pts) {
   }
   return true;
 }
-// How many of a path's segments pass through a node's interior.
+// How many of a path's segments pass through a box's interior.
 function crossings(pts, r) {
   let n = 0;
   const x0 = r.x + 1, x1 = r.x + r.w - 1, y0 = r.y + 1, y1 = r.y + r.h - 1;
@@ -287,18 +398,23 @@ const ICON = {
   arrowBoth: I('<path d="M5 12h14M10 7l-5 5 5 5M14 7l5 5-5 5"/>'),
   arrowNone: I('<path d="M4 12h16"/>'),
   flip: I('<path d="M7 7h11l-3-3M17 17H6l3 3"/>'),
-  label: I('<path d="M5 18 10 6h1l5 12M7 14h7"/><path d="M18 9v9"/>')
+  label: I('<path d="M5 18 10 6h1l5 12M7 14h7"/><path d="M18 9v9"/>'),
+  tidy: I('<rect x="3" y="10" width="6" height="4" rx="1"/><rect x="15" y="4" width="6" height="4" rx="1"/>'
+    + '<rect x="15" y="16" width="6" height="4" rx="1"/><path d="M9 12h3M12 6v12M12 6h3M12 18h3"/>'),
+  fold: I('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/>'),
+  unfold: I('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8M12 8v8"/>')
 };
 
 /* ---------- styles, injected once ---------- */
 function injectStyles() {
   if (document.getElementById("tc-styles")) return;
   const accent = "var(--accent, #a0391c)";
+  const font = 'var(--font-body, "Segoe UI", system-ui, sans-serif)';
   const css = `
   .tc-root [hidden] { display: none !important; }
   .tc-root { position: relative; width: 100%; height: 100%; overflow: hidden; outline: none;
     background: var(--paper, #faf8f3); user-select: none; -webkit-user-select: none;
-    font-family: var(--font-body, "Segoe UI", system-ui, sans-serif); color: var(--ink, #141108); }
+    font-family: ${font}; color: var(--ink, #141108); }
   .tc-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   .tc-root.tc-placing .tc-svg { cursor: crosshair; }
   .tc-root.tc-panning .tc-svg, .tc-root.tc-panning .tc-svg * { cursor: grabbing !important; }
@@ -308,25 +424,35 @@ function injectStyles() {
   .tc-fo.editing { pointer-events: auto; }
   .tc-box { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
   .tc-label { width: 100%; max-height: 100%; text-align: center; white-space: pre-wrap; overflow-wrap: anywhere;
-    line-height: 1.25; color: var(--ink, #141108); font-family: var(--font-body, "Segoe UI", system-ui, sans-serif);
-    outline: none; }
+    line-height: 1.25; color: var(--ink, #141108); font-family: ${font}; outline: none; }
+  .tc-mm .tc-label { max-height: none; line-height: ${MM.lineHeight}; }
   .tc-label[contenteditable] { cursor: text; user-select: text; -webkit-user-select: text; min-height: 1.25em; }
   .tc-measure { position: fixed; left: -10000px; top: 0; visibility: hidden; max-height: none; }
+  .tc-mm-measure { position: fixed; left: -10000px; top: 0; visibility: hidden; display: inline-block;
+    white-space: pre-wrap; overflow-wrap: anywhere; line-height: ${MM.lineHeight}; font-family: ${font}; }
   .tc-link-hit { fill: none; stroke: transparent; cursor: pointer; }
   .tc-link-line { fill: none; stroke: #6a6252; stroke-width: 1.6; stroke-linejoin: round; pointer-events: none; }
   .tc-link.selected .tc-link-line { stroke: ${accent}; }
+  .tc-mm-line { fill: none; stroke: #8a8070; stroke-width: 1.6; pointer-events: none; }
   .tc-link-label { cursor: pointer; }
   .tc-link-label rect { fill: var(--paper, #faf8f3); }
-  .tc-link-label text { font-size: 12px; fill: #2f2a22; font-family: var(--font-body, "Segoe UI", system-ui, sans-serif); }
+  .tc-link-label text { font-size: 12px; fill: #2f2a22; font-family: ${font}; }
   .tc-sel { fill: none; stroke: ${accent}; stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .tc-drop { fill: rgba(160, 57, 28, .06); stroke: ${accent}; stroke-width: 2; stroke-dasharray: 5 3;
+    vector-effect: non-scaling-stroke; pointer-events: none; }
   .tc-handle { fill: #fff; stroke: ${accent}; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .tc-anchor { fill: #fff; stroke: ${accent}; stroke-width: 1.5; vector-effect: non-scaling-stroke; cursor: crosshair; }
   .tc-anchor.hot { fill: ${accent}; }
-  .tc-plus { cursor: pointer; }
+  .tc-plus, .tc-fold { cursor: pointer; }
   .tc-plus circle { fill: #fff; stroke: ${accent}; stroke-width: 1.2; vector-effect: non-scaling-stroke; opacity: .9; }
   .tc-plus:hover circle { fill: ${accent}; }
   .tc-plus path { stroke: ${accent}; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
   .tc-plus:hover path { stroke: #fff; }
+  .tc-fold circle { fill: #fff; stroke: #8a8070; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+  .tc-fold:hover circle { stroke: ${accent}; }
+  .tc-fold path { stroke: #6a6252; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .tc-fold text { fill: #2f2a22; font-family: ${font}; font-weight: 600; }
+  .tc-fold.folded circle { fill: var(--paper-2, #ece7db); }
   .tc-end { fill: #fff; stroke: ${accent}; stroke-width: 1.5; vector-effect: non-scaling-stroke; cursor: grab; }
   .tc-marquee { fill: rgba(160, 57, 28, .06); stroke: ${accent}; stroke-width: 1; stroke-dasharray: 4 3;
     vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -370,14 +496,15 @@ function create(container, opts) {
   let view = { x: 0, y: 0, z: 1 };        // screen = world * z + (x, y)
   let selNodes = new Set();
   let selLink = null;
-  let tool = null;                        // "rect" | "oval" while placing a shape
+  let tool = null;                        // "rect" | "oval" while placing a diagram shape
   let hover = null;                       // node whose connection points are showing
   let gesture = null;                     // the pointer interaction in progress
-  let editing = null;                     // { node, label, fo, before } while typing in a shape
+  let editing = null;                     // { node, label, fo, before, fresh } while typing in a box
   let labelEdit = null;                   // { link, before } while typing a line's label
   let lastColor = 0;
   let pendingBefore = null;
   const undoStack = [], redoStack = [];
+  const isMind = () => data.type === "mindmap";
 
   /* DOM */
   const root = htmlEl("div", { class: "tc-root", tabindex: "0" });
@@ -410,9 +537,17 @@ function create(container, opts) {
 
   const rectTool = btn(ICON.rect, "Rectangle: click, then click the canvas", () => setTool("rect"));
   const ovalTool = btn(ICON.oval, "Oval: click, then click the canvas", () => setTool("oval"));
+  const tidyTool = btn(ICON.tidy, "Tidy the whole map", () => tidyAll());
   const undoBtn = btn(ICON.undo, "Undo (Ctrl+Z)", () => undo());
   const redoBtn = btn(ICON.redo, "Redo (Ctrl+Y)", () => redo());
-  const tools = htmlEl("div", { class: "tc-bar tc-tools" }, rectTool, ovalTool, sep(), undoBtn, redoBtn);
+  const tools = htmlEl("div", { class: "tc-bar tc-tools" });
+  let toolsFor = null;
+  function buildTools() {
+    toolsFor = data.type;
+    tools.textContent = "";
+    if (isMind()) tools.append(tidyTool, sep(), undoBtn, redoBtn);
+    else tools.append(rectTool, ovalTool, sep(), undoBtn, redoBtn);
+  }
 
   const zoomLevel = htmlEl("span", { class: "tc-zoom-level" }, "100%");
   const zoomBar = htmlEl("div", { class: "tc-bar tc-zoom" },
@@ -432,18 +567,52 @@ function create(container, opts) {
   root.append(svg, tools, zoomBar, ctx, labelInput);
   container.append(root);
 
-  /* coordinates */
+  /* ---------- lookups and geometry ---------- */
   function toWorld(e) {
     const r = svg.getBoundingClientRect();
     return { x: (e.clientX - r.left - view.x) / view.z, y: (e.clientY - r.top - view.y) / view.z };
   }
   const toScreen = p => ({ x: p.x * view.z + view.x, y: p.y * view.z + view.y });
   const nodeById = id => data.nodes.find(n => n.id === id) || null;
-  const linkById = id => data.links.find(l => l.id === id) || null;
-  function nodeAt(p, exceptId) {
-    for (let i = data.nodes.length - 1; i >= 0; i--) {
-      const n = data.nodes[i];
-      if (n.id !== exceptId && p.x >= n.x && p.x <= n.x + n.w && p.y >= n.y && p.y <= n.y + n.h) return n;
+  const linkById = id => isMind() ? null : data.links.find(l => l.id === id) || null;
+
+  // A node's box. A diagram shape stores its own; a mind-map box is sized by
+  // its text and placed from the point where its line meets it.
+  function geom(n) {
+    if (!isMind()) return n;
+    const s = mindSize(n.text, !n.parent);
+    switch (n.parent ? n.side : null) {
+      case "right": return { x: n.x, y: n.y - s.h / 2, w: s.w, h: s.h };
+      case "left": return { x: n.x - s.w, y: n.y - s.h / 2, w: s.w, h: s.h };
+      case "bottom": return { x: n.x - s.w / 2, y: n.y, w: s.w, h: s.h };
+      case "top": return { x: n.x - s.w / 2, y: n.y - s.h, w: s.w, h: s.h };
+      default: return { x: n.x - s.w / 2, y: n.y - s.h / 2, w: s.w, h: s.h };
+    }
+  }
+  const childrenOf = id => data.nodes.filter(n => n.parent === id);
+  function descendants(n) {
+    const out = [];
+    const stack = [n.id];
+    while (stack.length) {
+      const id = stack.pop();
+      for (const c of data.nodes) if (c.parent === id) { out.push(c); stack.push(c.id); }
+    }
+    return out;
+  }
+  // Everything not tucked away inside a folded branch.
+  function visibleNodes() {
+    if (!isMind()) return data.nodes;
+    const hidden = new Set();
+    for (const n of data.nodes) if (n.folded) for (const d of descendants(n)) hidden.add(d.id);
+    return data.nodes.filter(n => !hidden.has(n.id));
+  }
+  function nodeAt(p, except) {
+    const skip = except instanceof Set ? except : new Set(except ? [except] : []);
+    const nodes = visibleNodes();
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i];
+      const g = geom(n);
+      if (!skip.has(n.id) && p.x >= g.x && p.x <= g.x + g.w && p.y >= g.y && p.y <= g.y + g.h) return n;
     }
     return null;
   }
@@ -474,7 +643,7 @@ function create(container, opts) {
     render();
   }
   function undo() {
-    finishEditing();
+    if (finishEditing() === "discarded") return;
     finishLabel(true);
     if (!undoStack.length) return;
     redoStack.push(snapshot());
@@ -497,7 +666,7 @@ function create(container, opts) {
   const nodeEls = new Map();
   function makeNodeEl(n) {
     const g = svgEl("g", { class: "tc-node", "data-node": n.id });
-    svgEl("rect", { class: "tc-shape tc-rect", rx: RADIUS, ry: RADIUS }, g);
+    svgEl("rect", { class: "tc-shape tc-rect" }, g);
     svgEl("ellipse", { class: "tc-shape tc-oval" }, g);
     const fo = svgEl("foreignObject", { class: "tc-fo" }, g);
     const box = htmlEl("div", { class: "tc-box" });
@@ -512,36 +681,51 @@ function create(container, opts) {
   }
   function updateNodeEl(g, n) {
     const c = COLORS[n.color] || COLORS[0];
-    const isOval = n.shape === "oval";
+    const mind = isMind();
+    const isOval = !mind && n.shape === "oval";
     g._rect.style.display = isOval ? "none" : "";
     g._oval.style.display = isOval ? "" : "none";
+    const r = geom(n);
     const shape = isOval ? g._oval : g._rect;
     if (isOval) {
-      shape.setAttribute("cx", n.x + n.w / 2);
-      shape.setAttribute("cy", n.y + n.h / 2);
-      shape.setAttribute("rx", n.w / 2);
-      shape.setAttribute("ry", n.h / 2);
+      shape.setAttribute("cx", r.x + r.w / 2);
+      shape.setAttribute("cy", r.y + r.h / 2);
+      shape.setAttribute("rx", r.w / 2);
+      shape.setAttribute("ry", r.h / 2);
     } else {
-      shape.setAttribute("x", n.x);
-      shape.setAttribute("y", n.y);
-      shape.setAttribute("width", n.w);
-      shape.setAttribute("height", n.h);
+      shape.setAttribute("x", r.x);
+      shape.setAttribute("y", r.y);
+      shape.setAttribute("width", r.w);
+      shape.setAttribute("height", r.h);
+      shape.setAttribute("rx", mind ? MM.radius : RADIUS);
+      shape.setAttribute("ry", mind ? MM.radius : RADIUS);
     }
     shape.setAttribute("fill", c.fill);
     shape.setAttribute("stroke", c.stroke);
-    const tb = textBox(n);
+
+    let tb, size;
+    if (mind) {
+      const s = mindSize(n.text, !n.parent);
+      tb = { x: r.x + s.padX, y: r.y + s.padY, w: r.w - s.padX * 2, h: r.h - s.padY * 2 };
+      size = n.parent ? MM.font : MM.rootFont;
+      g._label.style.fontWeight = n.parent ? "400" : "600";
+    } else {
+      tb = textBox(n);
+      g._label.style.fontWeight = "";
+    }
     g._fo.setAttribute("x", tb.x);
     g._fo.setAttribute("y", tb.y);
-    g._fo.setAttribute("width", tb.w);
-    g._fo.setAttribute("height", tb.h);
-    // The shape being typed in manages its own text and size.
+    g._fo.setAttribute("width", Math.max(1, tb.w));
+    g._fo.setAttribute("height", Math.max(1, tb.h));
+    // The box being typed in manages its own text.
     if (editing && editing.node.id === n.id) return;
     if (g._label.textContent !== n.text) g._label.textContent = n.text;
-    g._label.style.fontSize = fitFont(n.text, tb.w, tb.h) + "px";
+    g._label.style.fontSize = (mind ? size : fitFont(n.text, tb.w, tb.h)) + "px";
   }
   function renderNodes() {
     const seen = new Set();
-    data.nodes.forEach((n, i) => {
+    const nodes = visibleNodes();
+    nodes.forEach((n, i) => {
       seen.add(n.id);
       let g = nodeEls.get(n.id);
       if (!g) { g = makeNodeEl(n); nodeEls.set(n.id, g); }
@@ -568,60 +752,96 @@ function create(container, opts) {
   }
   function renderLinks() {
     linkLayer.textContent = "";
-    const hitWidth = 12 / view.z;
-    for (const l of data.links) {
-      const relinking = gesture && gesture.kind === "relink" && gesture.link === l.id ? gesture : null;
-      const d = linkGeometry(l, relinking && relinking.target ? relinking : null);
-      const selected = selLink === l.id;
-      const g = svgEl("g", { class: "tc-link" + (selected ? " selected" : ""), "data-link": l.id }, linkLayer);
-      svgEl("path", { d, class: "tc-link-hit", "stroke-width": hitWidth }, g);
-      const marker = `url(#${ID}-arrow${selected ? "-sel" : ""})`;
-      const line = svgEl("path", {
-        d, class: "tc-link-line",
-        "marker-end": l.arrow !== "none" ? marker : null,
-        "marker-start": l.arrow === "both" ? marker : null
-      }, g);
-      if (l.label && !(labelEdit && labelEdit.link === l.id)) {
-        const mid = line.getPointAtLength(line.getTotalLength() / 2);
-        const lg = svgEl("g", { class: "tc-link-label" }, g);
-        const bg = svgEl("rect", {}, lg);
-        const t = svgEl("text", { x: mid.x, y: mid.y, "text-anchor": "middle", "dominant-baseline": "central" }, lg);
-        t.textContent = l.label;
-        const bb = t.getBBox();
-        bg.setAttribute("x", bb.x - 5);
-        bg.setAttribute("y", bb.y - 2);
-        bg.setAttribute("width", bb.width + 10);
-        bg.setAttribute("height", bb.height + 4);
-        bg.setAttribute("rx", 4);
+    if (isMind()) {
+      // A mind map's lines are its tree: each box to its parent, curved.
+      const shown = new Set(visibleNodes().map(n => n.id));
+      for (const n of data.nodes) {
+        if (!n.parent || !shown.has(n.id)) continue;
+        const p = nodeById(n.parent);
+        if (!p) continue;
+        const a = anchorPoint(geom(p), n.side), b = anchorPoint(geom(n), OPPOSITE[n.side]);
+        svgEl("path", { class: "tc-mm-line", d: routeD("curved", a, n.side, b, OPPOSITE[n.side]) }, linkLayer);
+      }
+    } else {
+      const hitWidth = 12 / view.z;
+      for (const l of data.links) {
+        const relinking = gesture && gesture.kind === "relink" && gesture.link === l.id ? gesture : null;
+        const d = linkGeometry(l, relinking && relinking.target ? relinking : null);
+        const selected = selLink === l.id;
+        const g = svgEl("g", { class: "tc-link" + (selected ? " selected" : ""), "data-link": l.id }, linkLayer);
+        svgEl("path", { d, class: "tc-link-hit", "stroke-width": hitWidth }, g);
+        const marker = `url(#${ID}-arrow${selected ? "-sel" : ""})`;
+        const line = svgEl("path", {
+          d, class: "tc-link-line",
+          "marker-end": l.arrow !== "none" ? marker : null,
+          "marker-start": l.arrow === "both" ? marker : null
+        }, g);
+        if (l.label && !(labelEdit && labelEdit.link === l.id)) {
+          const mid = line.getPointAtLength(line.getTotalLength() / 2);
+          const lg = svgEl("g", { class: "tc-link-label" }, g);
+          const bg = svgEl("rect", {}, lg);
+          const t = svgEl("text", { x: mid.x, y: mid.y, "text-anchor": "middle", "dominant-baseline": "central" }, lg);
+          t.textContent = l.label;
+          const bb = t.getBBox();
+          bg.setAttribute("x", bb.x - 5);
+          bg.setAttribute("y", bb.y - 2);
+          bg.setAttribute("width", bb.width + 10);
+          bg.setAttribute("height", bb.height + 4);
+          bg.setAttribute("rx", 4);
+        }
       }
     }
     if (gesture && gesture.kind === "connect") {
       const src = nodeById(gesture.from.node);
-      const p1 = anchorPoint(src, gesture.from.side);
+      const sg = geom(src);
+      const p1 = anchorPoint(sg, gesture.from.side);
       const t = gesture.target;
       const d = t
-        ? routeD("elbow", p1, gesture.from.side, anchorPoint(t.node, t.side), t.side, src, t.node)
+        ? routeD("elbow", p1, gesture.from.side, anchorPoint(t.node, t.side), t.side, sg, t.node)
         : `M${p1.x} ${p1.y} L${gesture.p.x} ${gesture.p.y}`;
       svgEl("path", { d, class: "tc-rubber" }, linkLayer);
     }
   }
 
+  // Which sides of a mind-map box can grow a new branch: all four on the
+  // central topic, and every side but the one facing back to the parent.
+  function growSides(n) {
+    return isMind() && n.parent ? SIDES.filter(s => s !== OPPOSITE[n.side]) : SIDES;
+  }
+  // Where the + buttons go. Past the centre only on the side facing away
+  // from it: in a column of boxes a + above or below would sit inside the
+  // neighbour. The other sides grow by dragging out from their dot.
+  function plusSidesOf(n) {
+    return isMind() && n.parent ? [n.side] : SIDES;
+  }
+
   function renderOverlay() {
     overlay.textContent = "";
     const z = view.z;
+    const mind = isMind();
     const busy = gesture && gesture.kind !== "marquee";
 
     for (const id of selNodes) {
       const n = nodeById(id);
       if (!n) continue;
+      const g = geom(n);
       svgEl("rect", {
-        class: "tc-sel", x: n.x - 3 / z, y: n.y - 3 / z, width: n.w + 6 / z, height: n.h + 6 / z,
-        rx: n.shape === "oval" ? 0 : RADIUS + 2 / z
+        class: "tc-sel", x: g.x - 3 / z, y: g.y - 3 / z, width: g.w + 6 / z, height: g.h + 6 / z,
+        rx: !mind && n.shape === "oval" ? 0 : (mind ? MM.radius : RADIUS) + 2 / z
       }, overlay);
     }
 
-    // Resize handles on a single selected shape.
-    if (selNodes.size === 1 && !editing && (!gesture || gesture.kind === "resize")) {
+    // Where a dragged mind-map branch would be re-attached.
+    if (gesture && gesture.kind === "move" && gesture.dropOn) {
+      const g = geom(gesture.dropOn);
+      svgEl("rect", {
+        class: "tc-drop", x: g.x - 5 / z, y: g.y - 5 / z, width: g.w + 10 / z, height: g.h + 10 / z,
+        rx: MM.radius + 4 / z
+      }, overlay);
+    }
+
+    // Resize handles on a single selected diagram shape.
+    if (!mind && selNodes.size === 1 && !editing && (!gesture || gesture.kind === "resize")) {
       const n = nodeById([...selNodes][0]);
       if (n) {
         const s = 8 / z;
@@ -635,22 +855,60 @@ function create(container, opts) {
       }
     }
 
-    // Connection points and quick-add buttons on the shape under the pointer.
+    // Fold buttons on mind-map boxes with branches: always shown on a folded
+    // box (with how much is inside), on hover or selection otherwise.
+    if (mind && !busy) {
+      for (const n of visibleNodes()) {
+        const kids = childrenOf(n.id);
+        if (!kids.length) continue;
+        if (!n.folded && n !== hover && !selNodes.has(n.id)) continue;
+        const g = geom(n);
+        const sides = n.folded ? [kids[0].side] : [...new Set(kids.map(k => k.side))];
+        for (const side of sides) {
+          const a = anchorPoint(g, side);
+          const r = (n.folded ? 8 : 6.5) / z;
+          const fg = svgEl("g", { class: "tc-fold" + (n.folded ? " folded" : ""), "data-fold": n.id }, overlay);
+          svgEl("title", {}, fg).textContent = n.folded ? "Unfold this branch" : "Fold this branch";
+          svgEl("circle", { cx: a.x, cy: a.y, r }, fg);
+          if (n.folded) {
+            const t = svgEl("text", {
+              x: a.x, y: a.y, "text-anchor": "middle", "dominant-baseline": "central", "font-size": 9 / z
+            }, fg);
+            t.textContent = String(descendants(n).length);
+          } else {
+            const k = 3 / z;
+            svgEl("path", { d: `M${a.x - k} ${a.y} H${a.x + k}` }, fg);
+          }
+        }
+      }
+    }
+
+    // Connection points and + buttons on the box under the pointer.
     const connectTarget = gesture && (gesture.kind === "connect" || gesture.kind === "relink") && gesture.target;
     const show = connectTarget ? connectTarget.node : (!busy ? hover : null);
-    if (show && nodeById(show.id)) {
+    // Never for a box that has just been folded away or deleted.
+    if (show && nodeById(show.id) && (!mind || visibleNodes().includes(show))) {
+      const g = geom(show);
+      const branchSides = mind ? new Set(childrenOf(show.id).map(k => k.side)) : new Set();
+      const dotSides = growSides(show);
+      const plusSides = plusSidesOf(show);
       for (const side of SIDES) {
-        const a = anchorPoint(show, side);
+        const a = anchorPoint(g, side);
         const hot = connectTarget && connectTarget.side === side;
-        svgEl("circle", {
-          class: "tc-anchor" + (hot ? " hot" : ""), "data-anchor": side, "data-node": show.id,
-          cx: a.x, cy: a.y, r: (hot ? 6.5 : 5) / z
-        }, overlay);
-        if (connectTarget) continue;
+        // On a mind map, a side that already has branches shows its fold
+        // button there instead, and the side facing the parent shows nothing.
+        const dot = !mind || (dotSides.includes(side) && !branchSides.has(side));
+        if (dot) {
+          svgEl("circle", {
+            class: "tc-anchor" + (hot ? " hot" : ""), "data-anchor": side, "data-node": show.id,
+            cx: a.x, cy: a.y, r: (hot ? 6.5 : 5) / z
+          }, overlay);
+        }
+        if (connectTarget || !plusSides.includes(side)) continue;
         const [nx, ny] = NORMAL[side];
         const off = 26 / z;
         const pg = svgEl("g", { class: "tc-plus", "data-plus": side, "data-node": show.id }, overlay);
-        svgEl("title", {}, pg).textContent = "Add a connected shape";
+        svgEl("title", {}, pg).textContent = mind ? "Add a branch" : "Add a connected shape";
         const cx = a.x + nx * off, cy = a.y + ny * off, r = 8.5 / z, k = 4 / z;
         svgEl("circle", { cx, cy, r }, pg);
         svgEl("path", { d: `M${cx - k} ${cy} H${cx + k} M${cx} ${cy - k} V${cy + k}` }, pg);
@@ -677,8 +935,10 @@ function create(container, opts) {
   }
 
   function render() {
+    if (toolsFor !== data.type) { buildTools(); ctxKind = null; }
+    root.classList.toggle("tc-mm", isMind());
     world.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.z})`);
-    gridRect.style.display = view.z < 0.45 ? "none" : "";
+    gridRect.style.display = isMind() || view.z < 0.45 ? "none" : "";
     renderLinks();
     renderNodes();
     renderOverlay();
@@ -692,17 +952,19 @@ function create(container, opts) {
   }
 
   /* ---------- the floating toolbar ---------- */
+  function swatches() {
+    return COLORS.map((c, i) => htmlEl("button", {
+      class: "tc-swatch", type: "button", title: c.name, "aria-label": c.name, "data-color": i,
+      style: `background:${c.fill};border-color:${c.stroke}`,
+      onmousedown: e => e.preventDefault(),
+      onclick: () => setColor(i)
+    }));
+  }
   function buildCtx(kind) {
     ctx.textContent = "";
     ctxKind = kind;
     if (kind === "node") {
-      COLORS.forEach((c, i) => ctx.append(htmlEl("button", {
-        class: "tc-swatch", type: "button", title: c.name, "aria-label": c.name, "data-color": i,
-        style: `background:${c.fill};border-color:${c.stroke}`,
-        onmousedown: e => e.preventDefault(),
-        onclick: () => setColor(i)
-      })));
-      ctx.append(sep(),
+      ctx.append(...swatches(), sep(),
         btn(ICON.rect, "Rectangle", () => setShape("rect"), { "data-shape": "rect" }),
         btn(ICON.oval, "Oval", () => setShape("oval"), { "data-shape": "oval" }),
         sep(),
@@ -711,6 +973,12 @@ function create(container, opts) {
         btn(ICON.back, "Send to back", () => restack(false)),
         sep(),
         btn(ICON.trash, "Delete", () => deleteSelection()));
+    } else if (kind === "mind") {
+      ctx.append(...swatches(), sep(),
+        btn(ICON.tidy, "Tidy this branch", () => tidySelected()),
+        btn(ICON.fold, "Fold or unfold this branch", () => toggleFoldSelected(), { "data-fold-btn": "" }),
+        sep(),
+        btn(ICON.trash, "Delete this branch", () => deleteSelection(), { "data-delete": "" }));
     } else if (kind === "link") {
       ctx.append(
         btn(ICON.elbow, "Right-angled line", () => setLink({ style: "elbow" }), { "data-style": "elbow" }),
@@ -729,24 +997,37 @@ function create(container, opts) {
   }
   function placeContextBar() {
     const kind = gesture && gesture.kind !== "marquee" ? null
-      : selNodes.size ? "node" : selLink ? "link" : null;
+      : selNodes.size ? (isMind() ? "mind" : "node") : selLink ? "link" : null;
     if (!kind || labelEdit) { ctx.hidden = true; return; }
     if (kind !== ctxKind) buildCtx(kind);
     ctx.hidden = false;
 
     let top, left, below;
-    if (kind === "node") {
+    if (kind === "node" || kind === "mind") {
       const ns = [...selNodes].map(nodeById).filter(Boolean);
-      const colors = new Set(ns.map(n => n.color)), shapes = new Set(ns.map(n => n.shape));
+      if (!ns.length) { ctx.hidden = true; return; }
+      const colors = new Set(ns.map(n => n.color));
       ctx.querySelectorAll("[data-color]").forEach(b =>
         b.classList.toggle("on", colors.size === 1 && colors.has(+b.dataset.color)));
-      ctx.querySelectorAll("[data-shape]").forEach(b =>
-        b.classList.toggle("on", shapes.size === 1 && shapes.has(b.dataset.shape)));
-      const x0 = Math.min(...ns.map(n => n.x)), x1 = Math.max(...ns.map(n => n.x + n.w));
-      const y0 = Math.min(...ns.map(n => n.y)), y1 = Math.max(...ns.map(n => n.y + n.h));
+      if (kind === "node") {
+        const shapes = new Set(ns.map(n => n.shape));
+        ctx.querySelectorAll("[data-shape]").forEach(b =>
+          b.classList.toggle("on", shapes.size === 1 && shapes.has(b.dataset.shape)));
+      } else {
+        const foldBtn = ctx.querySelector("[data-fold-btn]");
+        const withKids = ns.filter(n => childrenOf(n.id).length);
+        foldBtn.hidden = !withKids.length;
+        foldBtn.innerHTML = withKids.length && withKids.every(n => n.folded) ? ICON.unfold : ICON.fold;
+        ctx.querySelector("[data-delete]").hidden = ns.every(n => !n.parent);
+      }
+      const gs = ns.map(geom);
+      const x0 = Math.min(...gs.map(g => g.x)), x1 = Math.max(...gs.map(g => g.x + g.w));
+      const y0 = Math.min(...gs.map(g => g.y)), y1 = Math.max(...gs.map(g => g.y + g.h));
       const a = toScreen({ x: (x0 + x1) / 2, y: y0 }), b = toScreen({ x: 0, y: y1 });
-      // Clear of the + buttons, which sit just outside the shape.
-      left = a.x; top = a.y - 44; below = b.y + 44;
+      // Clear of the + buttons just outside the box, where there are any: a
+      // mind-map branch has its only + on the side facing away from the centre.
+      const gap = kind === "mind" && ns.every(n => n.parent && across(n.side)) ? 12 : 44;
+      left = a.x; top = a.y - gap; below = b.y + gap;
     } else {
       const l = linkById(selLink);
       if (!l) { ctx.hidden = true; return; }
@@ -768,12 +1049,7 @@ function create(container, opts) {
     return toScreen(m);
   }
 
-  /* ---------- editing operations ---------- */
-  function setTool(t) {
-    finishEditing();
-    tool = tool === t ? null : t;
-    render();
-  }
+  /* ---------- editing: shared ---------- */
   function selectOnly(n) {
     selNodes = new Set(n ? [n.id] : []);
     selLink = null;
@@ -781,6 +1057,44 @@ function create(container, opts) {
   function clearSelection() {
     selNodes = new Set();
     selLink = null;
+  }
+  function setColor(i) {
+    lastColor = i;
+    change(() => { for (const id of selNodes) { const n = nodeById(id); if (n) n.color = i; } });
+  }
+  function deleteSelection() {
+    if (!selNodes.size && !selLink) return;
+    finishEditing();
+    if (isMind()) {
+      // A box goes with its whole branch. The central topic stays.
+      const gone = new Set();
+      for (const id of selNodes) {
+        const n = nodeById(id);
+        if (!n || !n.parent) continue;
+        gone.add(n.id);
+        for (const d of descendants(n)) gone.add(d.id);
+      }
+      if (!gone.size) return;
+      change(() => { data.nodes = data.nodes.filter(n => !gone.has(n.id)); });
+    } else {
+      change(() => {
+        if (selNodes.size) {
+          data.nodes = data.nodes.filter(n => !selNodes.has(n.id));
+          data.links = data.links.filter(l => !selNodes.has(l.from.node) && !selNodes.has(l.to.node));
+        }
+        if (selLink) data.links = data.links.filter(l => l.id !== selLink);
+      });
+    }
+    clearSelection();
+    hover = null;
+    render();
+  }
+
+  /* ---------- editing: diagrams ---------- */
+  function setTool(t) {
+    finishEditing();
+    tool = tool === t ? null : t;
+    render();
   }
   function newNode(shape, x, y, like) {
     return {
@@ -799,8 +1113,8 @@ function create(container, opts) {
     selectOnly(n);
     startEditing(n);
   }
-  function freeSpot(r, except) {
-    return !data.nodes.some(o => o !== except && overlaps(r, o, GRID - 1));
+  function freeSpot(r) {
+    return !data.nodes.some(o => overlaps(r, o, GRID - 1));
   }
   // The + beside a shape: a copy of it, one step away in that direction,
   // already connected. Sideways steps find room if the spot is taken.
@@ -821,10 +1135,6 @@ function create(container, opts) {
     });
     selectOnly(n);
     startEditing(n);
-  }
-  function setColor(i) {
-    lastColor = i;
-    change(() => { for (const id of selNodes) { const n = nodeById(id); if (n) n.color = i; } });
   }
   function setShape(s) {
     change(() => { for (const id of selNodes) { const n = nodeById(id); if (n) n.shape = s; } });
@@ -858,20 +1168,6 @@ function create(container, opts) {
     selNodes = new Set(copies.map(c => c.id));
     render();
   }
-  function deleteSelection() {
-    if (!selNodes.size && !selLink) return;
-    finishEditing();
-    change(() => {
-      if (selNodes.size) {
-        data.nodes = data.nodes.filter(n => !selNodes.has(n.id));
-        data.links = data.links.filter(l => !selNodes.has(l.from.node) && !selNodes.has(l.to.node));
-      }
-      if (selLink) data.links = data.links.filter(l => l.id !== selLink);
-    });
-    clearSelection();
-    hover = null;
-    render();
-  }
   function setLink(patch) {
     change(() => { const l = linkById(selLink); if (l) Object.assign(l, patch); });
   }
@@ -882,17 +1178,193 @@ function create(container, opts) {
     });
   }
 
-  /* ---------- typing in a shape ---------- */
+  /* ---------- editing: mind maps ---------- */
+  function translateBranch(n, dx, dy) {
+    for (const m of [n, ...descendants(n)]) { m.x += dx; m.y += dy; }
+  }
+  // The box around a branch as it shows: the box itself, plus everything
+  // under it that isn't folded away.
+  function branchBox(n) {
+    const g = geom(n);
+    const b = { x0: g.x, y0: g.y, x1: g.x + g.w, y1: g.y + g.h };
+    if (!n.folded) {
+      for (const c of childrenOf(n.id)) {
+        const cb = branchBox(c);
+        b.x0 = Math.min(b.x0, cb.x0); b.y0 = Math.min(b.y0, cb.y0);
+        b.x1 = Math.max(b.x1, cb.x1); b.y1 = Math.max(b.y1, cb.y1);
+      }
+    }
+    return b;
+  }
+  // Lays out everything under a box, neatly, from where the box is now.
+  // Each child's branch is first laid out around the origin, measured, and
+  // then stacked beside its siblings, centred on the parent.
+  function layoutKids(n) {
+    if (n.folded) return;
+    const r = geom(n);
+    // Sideways branches first; branches going up or down then keep clear of
+    // whatever those take up beside the box.
+    const placed = [];
+    for (const side of ["right", "left", "bottom", "top"]) {
+      const kids = childrenOf(n.id).filter(k => k.side === side);
+      if (!kids.length) continue;
+      // Keep the order they already have on screen.
+      const key = across(side) ? "y" : "x";
+      kids.sort((a, b) => a[key] - b[key]);
+      const boxes = kids.map(k => {
+        translateBranch(k, -k.x, -k.y);
+        layoutKids(k);
+        return branchBox(k);
+      });
+      if (across(side)) {
+        const total = boxes.reduce((s, b) => s + (b.y1 - b.y0), 0) + MM.vGap * (kids.length - 1);
+        let cursor = r.y + r.h / 2 - total / 2;
+        const x = side === "right" ? r.x + r.w + MM.hGap : r.x - MM.hGap;
+        kids.forEach((k, i) => {
+          const b = boxes[i];
+          const ax = side === "right" ? x - Math.min(0, b.x0) : x - Math.max(0, b.x1);
+          translateBranch(k, ax, cursor - b.y0);
+          cursor += (b.y1 - b.y0) + MM.vGap;
+          placed.push(branchBox(k));
+        });
+      } else {
+        const total = boxes.reduce((s, b) => s + (b.x1 - b.x0), 0) + MM.sideGap * (kids.length - 1);
+        let cursor = r.x + r.w / 2 - total / 2;
+        const gx0 = cursor, gx1 = cursor + total;
+        let y = side === "bottom" ? r.y + r.h + MM.crossGap : r.y - MM.crossGap;
+        for (const b of placed) {
+          if (b.x1 <= gx0 || b.x0 >= gx1) continue;
+          if (side === "bottom") y = Math.max(y, b.y1 + MM.crossGap / 2);
+          else y = Math.min(y, b.y0 - MM.crossGap / 2);
+        }
+        kids.forEach((k, i) => {
+          const b = boxes[i];
+          const ay = side === "bottom" ? y - Math.min(0, b.y0) : y - Math.max(0, b.y1);
+          translateBranch(k, cursor - b.x0, ay);
+          cursor += (b.x1 - b.x0) + MM.sideGap;
+        });
+      }
+    }
+  }
+  function collides(n, skip) {
+    const g = geom(n);
+    return visibleNodes().some(o => o !== n && !skip.has(o.id) && overlaps(g, geom(o), 6));
+  }
+  // Where a new branch goes: beyond the last one on that side, or level with
+  // the parent if it's the first; then further along until it's clear.
+  function autoPlace(parent, side, n) {
+    const r = geom(parent);
+    const s = mindSize(n.text, false);
+    const sibs = childrenOf(parent.id).filter(k => k.side === side && k !== n);
+    if (across(side)) {
+      n.x = side === "right" ? r.x + r.w + MM.hGap : r.x - MM.hGap;
+      n.y = sibs.length ? Math.max(...sibs.map(k => branchBox(k).y1)) + MM.vGap + s.h / 2 : r.y + r.h / 2;
+    } else {
+      n.y = side === "bottom" ? r.y + r.h + MM.crossGap : r.y - MM.crossGap;
+      n.x = sibs.length ? Math.max(...sibs.map(k => branchBox(k).x1)) + MM.sideGap + s.w / 2 : r.x + r.w / 2;
+    }
+    // Its own branch (when re-attaching one) is about to move with it.
+    const skip = new Set(descendants(n).map(d => d.id));
+    const step = across(side) ? { x: 0, y: s.h + MM.vGap } : { x: s.w + MM.sideGap, y: 0 };
+    for (let i = 0; i < 40 && collides(n, skip); i++) { n.x += step.x; n.y += step.y; }
+  }
+  // A new branch, placed automatically or where it was dropped (at: the point
+  // its line should meet it). Typing starts straight away.
+  function addChild(parent, side, at) {
+    const before = snapshot();
+    const n = {
+      id: uid(), parent: parent.id, side, x: 0, y: 0, text: "",
+      // Branches off the centre start white; deeper ones take their parent's colour.
+      color: parent.parent ? parent.color : 0, folded: false
+    };
+    change(() => {
+      parent.folded = false;
+      data.nodes.push(n);
+      if (at) { n.x = at.x; n.y = at.y; } else autoPlace(parent, side, n);
+    });
+    selectOnly(n);
+    startEditing(n, { fresh: before });
+  }
+  function addSibling(n) {
+    const parent = n.parent && nodeById(n.parent);
+    if (parent) addChild(parent, n.side);
+    else addChild(n, "right");
+  }
+  // Moves a branch to a different side, keeping the box where it is.
+  function turnBranch(n, side) {
+    if (!n.parent || side === n.side) return;
+    const g = geom(n);
+    const map = sideMap(n.side, side);
+    for (const d of descendants(n)) d.side = map(d.side);
+    n.side = side;
+    const a = anchorPoint(g, OPPOSITE[side]);
+    n.x = a.x;
+    n.y = a.y;
+    layoutKids(n);
+  }
+  // After a branch is dragged freely: if it crossed to the other side of its
+  // parent, it turns to face the right way. Only a mirror flip, never a
+  // quarter turn, so nudging a box in a long column can't tip it over.
+  function settleSide(n) {
+    const parent = n.parent && nodeById(n.parent);
+    if (!parent) return;
+    const pg = geom(parent), g = geom(n);
+    const cx = g.x + g.w / 2 - (pg.x + pg.w / 2), cy = g.y + g.h / 2 - (pg.y + pg.h / 2);
+    const flipped = (n.side === "right" && cx < 0) || (n.side === "left" && cx > 0)
+      || (n.side === "bottom" && cy < 0) || (n.side === "top" && cy > 0);
+    if (flipped) turnBranch(n, OPPOSITE[n.side]);
+  }
+  // Dropping a branch onto another box makes it that box's branch, carried on
+  // in the same direction, or to whichever side of the centre it was dropped.
+  function reattach(n, target, p) {
+    if (!n.parent || n === target || descendants(n).includes(target)) return false;
+    const tg = geom(target);
+    const side = target.parent ? target.side : (p.x < tg.x + tg.w / 2 ? "left" : "right");
+    const kids = descendants(n);
+    const map = sideMap(n.side, side);
+    for (const d of kids) d.side = map(d.side);
+    const turned = side !== n.side;
+    const ox = n.x, oy = n.y;
+    n.parent = target.id;
+    n.side = side;
+    target.folded = false;
+    autoPlace(target, side, n);
+    for (const d of kids) { d.x += n.x - ox; d.y += n.y - oy; }
+    if (turned) layoutKids(n);
+    return true;
+  }
+  function tidyAll() {
+    const centre = data.nodes.find(n => !n.parent);
+    if (isMind() && centre) change(() => layoutKids(centre));
+  }
+  function tidySelected() {
+    change(() => { for (const id of selNodes) { const n = nodeById(id); if (n) layoutKids(n); } });
+  }
+  function toggleFold(n) {
+    change(() => { n.folded = !n.folded; });
+    // Nothing stays selected inside a branch that just folded away.
+    const shown = new Set(visibleNodes().map(v => v.id));
+    selNodes = new Set([...selNodes].filter(id => shown.has(id)));
+    render();
+  }
+  function toggleFoldSelected() {
+    const ns = [...selNodes].map(nodeById).filter(n => n && childrenOf(n.id).length);
+    if (!ns.length) return;
+    const fold = !ns.every(n => n.folded);
+    change(() => { for (const n of ns) n.folded = fold; });
+  }
+
+  /* ---------- typing in a box ---------- */
   function readText(label) {
     return label.innerText.replace(/\r/g, "").replace(/\n$/, "");
   }
-  function startEditing(n) {
+  function startEditing(n, opts) {
     finishEditing();
     finishLabel(true);
     render();
     const g = nodeEls.get(n.id);
     if (!g) return;
-    editing = { node: n, label: g._label, fo: g._fo, before: snapshot() };
+    editing = { node: n, label: g._label, fo: g._fo, before: snapshot(), fresh: opts && opts.fresh };
     g._fo.classList.add("editing");
     g._label.setAttribute("contenteditable", "plaintext-only");
     g._label.addEventListener("input", onEditInput);
@@ -910,24 +1382,41 @@ function create(container, opts) {
     if (!editing) return;
     const { node, label } = editing;
     node.text = readText(label);
-    const tb = textBox(node);
-    label.style.fontSize = fitFont(node.text, tb.w, tb.h) + "px";
+    if (isMind()) {
+      // The box grows as you type, pushing its line along with it.
+      scheduleRender();
+    } else {
+      const tb = textBox(node);
+      label.style.fontSize = fitFont(node.text, tb.w, tb.h) + "px";
+    }
   }
   // Clicking anywhere outside the text ends typing, on the canvas or off it.
   function onEditBlur() { finishEditing(); }
   function finishEditing() {
-    if (!editing) return;
-    const { node, label, fo, before } = editing;
+    if (!editing) return null;
+    const { node, label, fo, before, fresh } = editing;
     editing = null;
     label.removeEventListener("input", onEditInput);
     label.removeEventListener("blur", onEditBlur);
     const text = readText(label).replace(/\s+$/, "");
     label.removeAttribute("contenteditable");
     fo.classList.remove("editing");
-    if (nodeById(node.id)) node.text = text;
     if (document.activeElement === label) root.focus({ preventScroll: true });
+    // A mind-map box added a moment ago and left empty is taken back, as if
+    // it had never been added.
+    if (fresh != null && isMind() && !text) {
+      if (undoStack[undoStack.length - 1] === fresh) undoStack.pop();
+      data = JSON.parse(fresh);
+      clearSelection();
+      hover = null;
+      onChange(getData());
+      render();
+      return "discarded";
+    }
+    if (nodeById(node.id)) node.text = text;
     commitFrom(before);
     render();
+    return "done";
   }
 
   /* ---------- a line's label ---------- */
@@ -977,14 +1466,15 @@ function create(container, opts) {
   }
   function fit() {
     const w = svg.clientWidth || 800, h = svg.clientHeight || 500;
-    if (!data.nodes.length) {
+    const gs = visibleNodes().map(geom);
+    if (!gs.length) {
       view = { x: w / 2, y: h / 2, z: 1 };
       render();
       return;
     }
     const pad = 60;
-    const x0 = Math.min(...data.nodes.map(n => n.x)), x1 = Math.max(...data.nodes.map(n => n.x + n.w));
-    const y0 = Math.min(...data.nodes.map(n => n.y)), y1 = Math.max(...data.nodes.map(n => n.y + n.h));
+    const x0 = Math.min(...gs.map(g => g.x)), x1 = Math.max(...gs.map(g => g.x + g.w));
+    const y0 = Math.min(...gs.map(g => g.y)), y1 = Math.max(...gs.map(g => g.y + g.h));
     const z = clamp(Math.min((w - pad * 2) / (x1 - x0), (h - pad * 2) / (y1 - y0)), ZOOM_MIN, 1.25);
     view = { z, x: w / 2 - ((x0 + x1) / 2) * z, y: h / 2 - ((y0 + y1) / 2) * z };
     render();
@@ -997,16 +1487,24 @@ function create(container, opts) {
       w: Math.abs(g.p1.x - g.p0.x), h: Math.abs(g.p1.y - g.p0.y)
     };
   }
+  // The box under the pointer, or failing that the nearest one within reach
+  // of its dots and + buttons, which sit just outside it.
   function hoverAt(p) {
+    const inside = nodeAt(p);
+    if (inside) return inside;
     const m = 36 / view.z;
-    for (let i = data.nodes.length - 1; i >= 0; i--) {
-      const n = data.nodes[i];
-      if (p.x >= n.x - m && p.x <= n.x + n.w + m && p.y >= n.y - m && p.y <= n.y + n.h + m) return n;
+    let best = null, bestD = Infinity;
+    for (const n of visibleNodes()) {
+      const g = geom(n);
+      const dx = Math.max(g.x - p.x, 0, p.x - (g.x + g.w));
+      const dy = Math.max(g.y - p.y, 0, p.y - (g.y + g.h));
+      const d = Math.hypot(dx, dy);
+      if (dx <= m && dy <= m && d < bestD) { bestD = d; best = n; }
     }
-    return null;
+    return best;
   }
-  // Where a dragged line end would land: a connection point it's over,
-  // else the nearest one on the shape it's over.
+  // Where a dragged diagram line end would land: a connection point it's
+  // over, else the nearest one on the shape it's over.
   function dropTarget(e, p, exceptId) {
     const dot = e.target.closest && e.target.closest("[data-anchor]");
     if (dot && dot.dataset.node !== exceptId) {
@@ -1016,7 +1514,19 @@ function create(container, opts) {
     const n = nodeAt(p, exceptId);
     return n ? { node: n, side: nearestSide(n, p) } : null;
   }
-
+  // The topmost selected mind-map boxes: selecting a box and something in its
+  // branch moves the branch once, not twice.
+  function branchHeads() {
+    const heads = [];
+    for (const id of selNodes) {
+      const n = nodeById(id);
+      if (!n) continue;
+      let p = n.parent && nodeById(n.parent), covered = false;
+      while (p) { if (selNodes.has(p.id)) { covered = true; break; } p = p.parent && nodeById(p.parent); }
+      if (!covered) heads.push(n);
+    }
+    return heads;
+  }
   function capture(e) {
     try { svg.setPointerCapture(e.pointerId); } catch (_) {}
   }
@@ -1036,11 +1546,18 @@ function create(container, opts) {
       return;
     }
     if (e.button !== 0) return;
-    if (tool) { placeShape(tool, p); return; }
+    if (tool && !isMind()) { placeShape(tool, p); return; }
 
     const t = e.target;
+    const fold = t.closest("[data-fold]");
+    if (fold) { const n = nodeById(fold.dataset.fold); if (n) toggleFold(n); return; }
+
     const plus = t.closest("[data-plus]");
-    if (plus) { const n = nodeById(plus.dataset.node); if (n) quickAdd(n, plus.dataset.plus); return; }
+    if (plus) {
+      const n = nodeById(plus.dataset.node);
+      if (n) { if (isMind()) addChild(n, plus.dataset.plus); else quickAdd(n, plus.dataset.plus); }
+      return;
+    }
 
     const anchor = t.closest("[data-anchor]");
     if (anchor) {
@@ -1077,9 +1594,12 @@ function create(container, opts) {
         selectOnly(n);
       }
       begin();
-      const starts = new Map();
-      for (const id of selNodes) { const m = nodeById(id); if (m) starts.set(id, { x: m.x, y: m.y }); }
-      gesture = { kind: "move", p0: p, grab: n, starts, moved: false };
+      // On a mind map a box drags its whole branch along.
+      const moving = isMind()
+        ? [...new Set(branchHeads().flatMap(h => [h, ...descendants(h)]))]
+        : [...selNodes].map(nodeById).filter(Boolean);
+      const starts = new Map(moving.map(m => [m.id, { x: m.x, y: m.y }]));
+      gesture = { kind: "move", p0: p, grab: n, starts, moved: false, dropOn: null };
       capture(e);
       render();
       return;
@@ -1101,6 +1621,10 @@ function create(container, opts) {
   function onMove(e) {
     const p = toWorld(e);
     if (!gesture) {
+      // Over one of the current box's own dots or buttons: stay on that box,
+      // even where they overlap a neighbour.
+      const own = e.target.closest && e.target.closest("[data-plus], [data-anchor], [data-fold]");
+      if (own && hover && (own.dataset.node || own.dataset.fold) === hover.id) return;
       const h = hoverAt(p);
       if (h !== hover) { hover = h; scheduleRender(); }
       return;
@@ -1114,12 +1638,21 @@ function create(container, opts) {
       const dx = p.x - g.p0.x, dy = p.y - g.p0.y;
       if (!g.moved && Math.hypot(dx, dy) * view.z < 3) return;
       g.moved = true;
-      // Snap the shape that was grabbed; the rest keep their offsets to it.
-      const s = g.starts.get(g.grab.id) || { x: g.grab.x, y: g.grab.y };
-      const ddx = snap(s.x + dx) - s.x, ddy = snap(s.y + dy) - s.y;
+      let ddx = dx, ddy = dy;
+      if (!isMind()) {
+        // Snap the shape that was grabbed; the rest keep their offsets to it.
+        const s = g.starts.get(g.grab.id) || { x: g.grab.x, y: g.grab.y };
+        ddx = snap(s.x + dx) - s.x;
+        ddy = snap(s.y + dy) - s.y;
+      }
       for (const [id, st] of g.starts) {
         const n = nodeById(id);
         if (n) { n.x = st.x + ddx; n.y = st.y + ddy; }
+      }
+      // A single branch dragged over another box would be re-attached there.
+      if (isMind()) {
+        const heads = branchHeads();
+        g.dropOn = heads.length === 1 && heads[0].parent ? nodeAt(p, new Set(g.starts.keys())) : null;
       }
       scheduleRender();
     } else if (g.kind === "resize") {
@@ -1133,7 +1666,7 @@ function create(container, opts) {
       scheduleRender();
     } else if (g.kind === "connect") {
       g.p = p;
-      g.target = dropTarget(e, p, g.from.node);
+      g.target = isMind() ? null : dropTarget(e, p, g.from.node);
       scheduleRender();
     } else if (g.kind === "relink") {
       g.p = p;
@@ -1145,7 +1678,7 @@ function create(container, opts) {
       g.p1 = p;
       const r = marqueeRect(g);
       selNodes = new Set(g.base);
-      for (const n of data.nodes) if (overlaps(r, n, 0)) selNodes.add(n.id);
+      for (const n of visibleNodes()) if (overlaps(r, geom(n), 0)) selNodes.add(n.id);
       scheduleRender();
     }
   }
@@ -1159,13 +1692,26 @@ function create(container, opts) {
     const p = toWorld(e);
 
     if (g.kind === "move" && !g.moved && !e.shiftKey && selNodes.size > 1) {
-      // A plain click on one of several selected shapes picks just that one.
+      // A plain click on one of several selected boxes picks just that one.
       selectOnly(g.grab);
       commit();
-    } else if (g.kind === "move" || g.kind === "resize") {
+    } else if (g.kind === "move") {
+      if (isMind() && g.moved) {
+        const heads = branchHeads();
+        if (g.dropOn && heads.length === 1) reattach(heads[0], g.dropOn, p);
+        else if (heads.length === 1) settleSide(heads[0]);
+      }
+      commit();
+    } else if (g.kind === "resize") {
       commit();
     } else if (g.kind === "connect") {
       const src = nodeById(g.from.node);
+      if (isMind()) {
+        // Dragging from a side's dot out into open space grows a branch there.
+        if (src && dist(p, g.start) * view.z > 30 && !nodeAt(p)) addChild(src, g.from.side, p);
+        render();
+        return;
+      }
       const target = dropTarget(e, p, g.from.node);
       if (src && target) {
         const l = newLink(g.from, { node: target.node.id, side: target.side });
@@ -1192,7 +1738,7 @@ function create(container, opts) {
 
   function onDouble(e) {
     const nodeEl = e.target.closest("[data-node]");
-    if (nodeEl && !e.target.closest("[data-plus], [data-anchor]")) {
+    if (nodeEl && !e.target.closest("[data-plus], [data-anchor], [data-fold]")) {
       const n = nodeById(nodeEl.dataset.node);
       if (n) { selectOnly(n); startEditing(n); }
       return;
@@ -1214,15 +1760,33 @@ function create(container, opts) {
   function onKey(e) {
     if (editing) {
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finishEditing(); }
+      else if (e.key === "Tab" && isMind()) {
+        // Typing a topic, then Tab: on to its first branch. (Enter stays a
+        // line break, since a box can hold several lines.)
+        e.preventDefault();
+        e.stopPropagation();
+        const n = editing.node;
+        if (finishEditing() !== "discarded" && nodeById(n.id)) addChild(n, n.parent ? n.side : "right");
+      }
       return;
     }
     if (e.target === labelInput) return;
     const mod = e.ctrlKey || e.metaKey;
     const k = e.key.toLowerCase();
+    const one = selNodes.size === 1 ? nodeById([...selNodes][0]) : null;
     if (mod && k === "z") { e.preventDefault(); e.stopPropagation(); if (e.shiftKey) redo(); else undo(); }
     else if (mod && k === "y") { e.preventDefault(); e.stopPropagation(); redo(); }
     else if (e.key === "Delete" || e.key === "Backspace") {
       if (selNodes.size || selLink) { e.preventDefault(); e.stopPropagation(); deleteSelection(); }
+    } else if (isMind() && one && e.key === "Tab" && !mod) {
+      // Keyboard extras on a mind map: Tab adds a branch, Enter a sibling.
+      e.preventDefault();
+      e.stopPropagation();
+      addChild(one, one.parent ? one.side : "right");
+    } else if (isMind() && one && e.key === "Enter" && !mod) {
+      e.preventDefault();
+      e.stopPropagation();
+      addSibling(one);
     } else if (e.key === "Escape") {
       if (tool || selNodes.size || selLink) {
         e.preventDefault();
@@ -1252,6 +1816,7 @@ function create(container, opts) {
     finishEditing();
     finishLabel(false);
     data = normalize(d);
+    tool = null;
     clearSelection();
     hover = null;
     undoStack.length = 0;
@@ -1266,7 +1831,7 @@ function create(container, opts) {
 
   render();
   requestAnimationFrame(() => fit());
-  return { getData, setData, fit, destroy, undo, redo, refresh: render, element: root };
+  return { getData, setData, fit, tidyAll, destroy, undo, redo, refresh: render, element: root };
 }
 
 window.TodoCanvas = { create, normalize, COLORS: COLORS.map(c => Object.assign({}, c)) };
