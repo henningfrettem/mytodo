@@ -177,8 +177,6 @@
   .login-form .btn { justify-content: center; padding: 11px 16px; }
   .google-signin { max-width: 340px; margin-bottom: 14px; }
   .google-signin .btn { width: 100%; justify-content: center; padding: 11px 16px; background: var(--card); }
-  .login-or { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 12px; color: var(--mute); }
-  .login-or::before, .login-or::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
   .link-btn {
     margin-top: 14px;
     font-size: 12.5px;
@@ -1942,15 +1940,12 @@
           </svg>
           Continue with Google
         </button>
-        <div class="login-or">or with your password</div>
       </div>
-      <form id="login-form" class="login-form" autocomplete="on">
-        <input id="login-email" class="login-input" type="email" placeholder="Email"
-               autocomplete="username" required>
-        <input id="login-password" class="login-input" type="password" placeholder="Password"
-               autocomplete="current-password" required>
-        <button id="btn-login" class="btn btn-primary" type="submit">Sign in</button>
-      </form>
+      <p id="signin-needs-web" class="welcome-sub" hidden>
+        Signing in goes through Google, which has to send you back to a web
+        address, so a copy opened from a file can't sign in. Open the app where
+        it's hosted instead.
+      </p>
       <button id="btn-reconfigure" class="link-btn">Use a different project</button>
     </div>
 
@@ -6479,18 +6474,14 @@ function showWelcome(stage) {
   appRoot.hidden = true;
   setupStage.hidden = stage !== "setup";
   loginStage.hidden = stage !== "login";
-  $("#google-signin").hidden = !googleEnabled();
+  $("#google-signin").hidden = !canSignIn();
+  $("#signin-needs-web").hidden = canSignIn();
 }
 
 /* ---------- Google sign-in ---------- */
-// Only on a web address, since Google has to send the browser back to one,
-// and only once the hosted config switches it on (SUPABASE_GOOGLE, see
-// README): until Supabase has the provider set up, the button would just
-// lead to an error page.
-function googleEnabled() {
-  const f = fileConfig();
-  return !!(f && f.google) && /^https?:$/.test(location.protocol);
-}
+// Google is the only way in, and it has to send the browser back to a web
+// address, so a page opened from file:// can't sign in (see README).
+const canSignIn = () => /^https?:$/.test(location.protocol);
 // A refused sign-in comes back as error parameters on the address. They're
 // taken off before the client starts, and turned into a message.
 function takeAuthError() {
@@ -6546,7 +6537,7 @@ $("#setup-form").addEventListener("submit", e => {
   saveConfig(cfg);
   sb = makeClient(cfg);
   showWelcome("login");
-  setTimeout(() => $("#login-email").focus(), 10);
+  if (canSignIn()) setTimeout(() => $("#btn-google").focus(), 10);
 });
 
 $("#btn-reconfigure").addEventListener("click", () => {
@@ -6560,31 +6551,9 @@ $("#btn-reconfigure").addEventListener("click", () => {
   setTimeout(() => $("#setup-url").focus(), 10);
 });
 
-$("#login-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  welcomeError.hidden = true;
-  const btn = $("#btn-login");
-  btn.disabled = true;
-  btn.textContent = "Signing in\u2026";
-  try {
-    const { data, error } = await sb.auth.signInWithPassword({
-      email: $("#login-email").value.trim(),
-      password: $("#login-password").value
-    });
-    if (error) throw error;
-    await startApp(data.user);
-  } catch (err) {
-    welcomeFail(err.message || String(err));
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Sign in";
-  }
-});
-
 $("#btn-signout").addEventListener("click", async () => {
   if (dirty) { try { await flushNow(); } catch {} }
   try { await sb.auth.signOut(); } catch {}
-  sessionStorage.setItem("todo.noAutoLogin", "1");
   location.reload();
 });
 
@@ -6634,39 +6603,9 @@ async function boot() {
     authError = authError || "Google sign-in didn't finish. Please try again.";
   }
 
-  const f = fileConfig();
-
-  // Signing out has to win over stored credentials, or it would just log
-  // straight back in. Cleared after one page load.
-  const suppressed = sessionStorage.getItem("todo.noAutoLogin");
-  sessionStorage.removeItem("todo.noAutoLogin");
-
-  if (f && f.email && f.password && !suppressed) {
-    showWelcome("login");
-    $("#login-email").value = f.email;
-    $("#btn-login").textContent = "Signing in\u2026";
-    $("#btn-login").disabled = true;
-    try {
-      const { data, error } = await sb.auth.signInWithPassword({ email: f.email, password: f.password });
-      if (error) throw error;
-      return startApp(data.user);
-    } catch (e) {
-      welcomeFail("Automatic sign-in failed: " + (e.message || e));
-    } finally {
-      $("#btn-login").textContent = "Sign in";
-      $("#btn-login").disabled = false;
-    }
-    return;
-  }
-
   showWelcome("login");
   if (authError) welcomeFail(authError);
-  if (f && f.email) {
-    $("#login-email").value = f.email;
-    setTimeout(() => $("#login-password").focus(), 10);
-  } else {
-    setTimeout(() => $("#login-email").focus(), 10);
-  }
+  if (canSignIn()) setTimeout(() => $("#btn-google").focus(), 10);
 }
 
 /* ---------- Don't lose the last few hundred milliseconds ---------- */

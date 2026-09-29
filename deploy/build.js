@@ -1,15 +1,13 @@
 // Builds the hosted site (Vercel runs this; see vercel.json) into dist/.
 //
 // Only the app's own files are copied, by name, so nothing else in the folder
-// can end up on the web: not config.local.js (which may hold a password), not
+// can end up on the web: not your local config.local.js, not
 // todos.json or assets/, not the one-off tools. The site's config.local.js is
 // written fresh from environment variables set on the Vercel project:
 //
 //   SUPABASE_URL              https://<project>.supabase.co
 //   SUPABASE_PUBLISHABLE_KEY  the publishable (or legacy anon) key
 //   SUPABASE_SCHEMA           optional, "todo" by default
-//   SUPABASE_GOOGLE           optional: 1 shows "Continue with Google", once
-//                             the Google provider is set up in Supabase
 //
 // The URL and key are public by design: every visitor's browser receives
 // them, and the database's row-level security is what keeps data private. The
@@ -51,7 +49,6 @@ function jwtRole(key) {
 const url = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
 const key = (process.env.SUPABASE_PUBLISHABLE_KEY || "").trim();
 const schema = (process.env.SUPABASE_SCHEMA || "todo").trim();
-const google = /^(1|true|yes|on)$/i.test((process.env.SUPABASE_GOOGLE || "").trim());
 
 if (!url || !key) fail("set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY on the Vercel project.");
 if (!/^https:\/\/[^\s/]+$/.test(url)) fail("SUPABASE_URL should look like https://<project>.supabase.co");
@@ -72,6 +69,6 @@ for (const f of FILES) {
 }
 fs.writeFileSync(path.join(OUT, "config.local.js"),
   "// Written by deploy/build.js from the Vercel project's environment variables.\n"
-  + "window.TODO_CONFIG = " + JSON.stringify(google ? { url, key, schema, google } : { url, key, schema }, null, 2) + ";\n");
+  + "window.TODO_CONFIG = " + JSON.stringify({ url, key, schema }, null, 2) + ";\n");
 
-console.log("build: " + (FILES.length + 1) + " files in dist/ for " + url + (google ? ", with Google sign-in" : ""));
+console.log("build: " + (FILES.length + 1) + " files in dist/ for " + url);

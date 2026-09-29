@@ -1,64 +1,47 @@
 # Todo
 
-A single-file todo board with a notes pane, backed by Supabase. Still one `index.html` you open
-straight off disk — no server, no build step, no npm — but the data now lives in
-Postgres rather than a file next to it. It can also be hosted, for example on
-Vercel, and installed as an app.
+A single-file todo board with a notes pane, backed by Supabase. The whole app is
+`index.html`, plus `canvas.js` for drawings, served as a static site (on Vercel,
+for instance) and installable as an app. You sign in with Google.
 
 ## Running it
 
-Double-click `index.html`. Chrome, Edge, Firefox and Safari all work; the File
-System Access API is no longer involved, so the old browser restriction is gone.
+The app runs from a web address, because signing in goes through Google, and
+Google has to send the browser back to one. So it's hosted (see *Hosting it*
+below), or, while working on it, served from this folder on your own machine:
 
-On first launch you're asked for your Supabase **project URL** and **publishable
-key**, then your email and password. Those project values are then kept in
-`localStorage`, and supabase-js keeps the session, so normally nothing is asked
-again.
+```bash
+python -m http.server 8000
+```
 
-To avoid the setup screen entirely — including on a fresh browser profile — copy
+Then open `http://localhost:8000`. For sign-in to work there, add
+`http://localhost:8000/**` to Supabase's Redirect URLs, next to the hosted
+address. Opened straight from disk (`file://`), the page loads but explains
+that it can't sign in, instead of offering the button.
+
+Without a config, the first launch asks for your Supabase **project URL** and
+**publishable key** and keeps them in `localStorage`. To skip that, copy
 `config.local.example.js` to **`config.local.js`** and fill it in. That file is
-gitignored and takes precedence over anything typed on screen. It's a `.js` file
-rather than `.env` or `.json` because a page opened from `file://` cannot fetch a
-sibling file; a script that assigns a global is the only form that loads.
-
-Adding `email` to it prefills the field. Adding `password` as well signs you in
-automatically — at the cost of a plaintext password sitting on your disk. It
-never reaches the repo, but weigh that before filling it in. Signing out
-deliberately overrides auto sign-in for that one page load.
+gitignored and wins over anything typed on screen; the hosted site gets its own,
+written by the build. supabase-js keeps the session, so you sign in once per
+browser.
 
 **The app needs an internet connection.** There is no offline mode: without a
 route to Supabase it cannot load your board.
 
-## Running it as a desktop app
+## Installing it
 
-Chrome's **Create shortcut** / **Install page as app** menu item is greyed out
-for `file://` pages in current versions — installing as a PWA needs a manifest
-served over HTTPS or localhost, and Chrome won't offer it for a local file no
-matter what the page declares.
-
-The way through is Chrome's `--app=` flag on an ordinary Windows shortcut:
-
-```
-powershell -ExecutionPolicy Bypass -File make-shortcut.ps1
-```
-
-That puts a **Todo** shortcut on your desktop, using `todo.ico`, which opens the
-app in its own window with no address bar and its own taskbar and Alt-Tab entry.
-Right-click it to pin to the taskbar.
-
-The shortcut deliberately does *not* pass `--user-data-dir`. The app window needs
-the ordinary Chrome profile: its own profile would mean its own `localStorage`,
-so a fresh setup screen and a lost session on every launch.
-
-Hosting it instead (below) makes it a real installable app on desktop and phone.
+From the hosted site, Chrome and Edge show an install icon at the right end of
+the address bar (or **⋮ → Cast, save and share → Install page as app…**). The
+app then opens in its own window, with its own taskbar and Alt-Tab entry;
+right-click the taskbar icon to pin it. On an iPhone, use Safari's **Share →
+Add to Home Screen**; on Android, **⋮ → Install app**.
 
 ## Hosting it (Vercel)
 
-The same files can be served from the web, which makes the app installable
-(Chrome and Edge: the install icon in the address bar; iPhone: Share → Add to
-Home Screen) and reachable from any device. It's just as quick once open:
-everything after the page loads runs in the browser exactly as it does off
-disk, talking straight to Supabase. The host only hands out the files.
+The app is a static site, so any static host works. It's quick once open:
+everything after the page loads runs in the browser, talking straight to
+Supabase. The host only hands out the files.
 
 `vercel.json` has Vercel run `deploy/build.js`, which copies the app's own
 files, by name and nothing else, into `dist/`, and writes the site's
@@ -69,14 +52,12 @@ files, by name and nothing else, into `dist/`, and writes the site's
 | `SUPABASE_URL` | `https://<project>.supabase.co` |
 | `SUPABASE_PUBLISHABLE_KEY` | the publishable key, `sb_publishable_…` |
 | `SUPABASE_SCHEMA` | optional, `todo` by default |
-| `SUPABASE_GOOGLE` | optional: `1` shows *Continue with Google* (see below) |
 
 These two are public by design: every visitor's browser receives them, and
 row-level security is what keeps the data private. The build refuses a secret
-or `service_role` key. No email or password is ever put on the site; you sign
-in once per browser and the session is kept. Your own `config.local.js` is
-never deployed: `.vercelignore` keeps it from being uploaded at all, and the
-build wouldn't copy it anyway.
+or `service_role` key. Your own `config.local.js` is never deployed:
+`.vercelignore` keeps it from being uploaded at all, and the build wouldn't copy
+it anyway.
 
 The site also asks search engines not to index it, and refuses to be shown
 inside another site's frame.
@@ -85,29 +66,27 @@ To set it up:
 
 1. **Supabase → Authentication**: check that *Allow new users to sign up* is
    off. Once the site is up, the project URL and key are visible to anyone who
-   opens it. (Password sign-in needs nothing else there: the Site URL and
-   Redirect URLs only matter for email links and sign-in providers.)
+   opens it.
 2. **Vercel → Add New → Project**: import this repository. Leave the framework
    as *Other*, since `vercel.json` sets up the build. Add the environment
    variables above, then deploy.
 3. **Project → Settings → Domains**: add your domain. If its DNS is hosted
    elsewhere, add the CNAME record Vercel shows at your DNS provider. The HTTPS
    certificate follows by itself.
+4. Set up Google sign-in, as below.
 
 After that, every push to the production branch (`main`) goes live.
 
 ### Signing in with Google
 
-On the hosted site the sign-in screen can offer **Continue with Google**, next
-to email and password. It uses Supabase's Google provider: the browser goes to
-Google, then to Supabase, and comes back signed in. The return is a one-time
-code only that browser can redeem (PKCE), never tokens in the address bar. A
-Google account whose email matches an existing user signs in as that user, so
-the data is all there; with new sign-ups off, any other Google account is
-turned away with a message saying so. It can't work from `file://`, since
-Google has to send the browser back to a web address.
+Google is the only way in. The sign-in screen's **Continue with Google** uses
+Supabase's Google provider: the browser goes to Google, then to Supabase, and
+comes back signed in. The return is a one-time code only that browser can
+redeem (PKCE), never tokens in the address bar. A Google account whose email
+matches an existing user signs in as that user; with new sign-ups off, any
+other Google account is turned away with a message saying so.
 
-To switch it on:
+To set it up:
 
 1. **Google Cloud Console**: create a project, set up the consent screen (only
    name, email and profile are asked for, so Google doesn't review it; keep it
@@ -118,7 +97,9 @@ To switch it on:
    and paste in the client ID and secret. The secret stays in Supabase.
 3. **Supabase → Authentication → URL Configuration → Redirect URLs**: add the
    site's address followed by `/**`. The Site URL can stay as it is.
-4. **Vercel**: set `SUPABASE_GOOGLE` to `1` and redeploy.
+
+The app has no password sign-in, so Supabase's **Email** provider can be
+switched off too, unless other apps on the same Supabase project use it.
 
 ## Setting up a fresh project
 
@@ -130,8 +111,9 @@ To switch it on:
    run.
 2. Add `todo` under **Settings → API → Exposed schemas**. PostgREST only serves
    schemas listed there, and without it every request comes back `404`.
-3. Create your user under **Authentication → Users**, and turn **off**
-   *Allow new users to sign up*.
+3. Create your user under **Authentication → Users**, with the email address of
+   the Google account you'll sign in with, and turn **off** *Allow new users to
+   sign up*. Then set up Google sign-in (*Signing in with Google*, above).
 
 Everything lives in a dedicated `todo` schema so one Supabase instance can host
 several small projects side by side. Storage buckets are global to the instance,
