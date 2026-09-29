@@ -42,10 +42,12 @@ Add to Home Screen**; on Android, **⋮ → Install app**.
 On a phone the app rearranges itself. The board and the notes become two
 views, switched with the bar at the bottom, and a floating button adds a task
 or a note to whichever is showing. The board shows one column at a time: swipe
-sideways for the next. Cards, notes, drawings and search open full screen, the
-keyboard hints go, and anything that otherwise appears only on hover (a note
-entry's delete button, a notes category's buttons) stays visible. Opening a
-card doesn't bring up the keyboard; tapping into its text does.
+sideways for the next. Cards and notes open in a window over the dimmed board;
+tap outside it, or the round close button, to close it. Search fills the
+screen. The keyboard hints go, and anything that otherwise appears only on
+hover (a note entry's delete button, a notes category's buttons) stays
+visible. Opening a card doesn't bring up the keyboard; tapping into its text
+does.
 
 Dragging (cards, columns, notes, entries) is for the desktop. On a phone a card
 moves to another column with the category in its window.

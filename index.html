@@ -1962,7 +1962,7 @@
     }
     .mobile-tab {
       flex: 1;
-      height: 54px;
+      height: 50px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1981,7 +1981,7 @@
       position: fixed;
       z-index: 20;
       right: max(16px, env(safe-area-inset-right));
-      bottom: calc(68px + env(safe-area-inset-bottom));
+      bottom: calc(62px + env(safe-area-inset-bottom));
       height: 48px;
       padding: 0 20px 0 16px;
       border-radius: 24px;
@@ -1995,40 +1995,41 @@
 
     /* Board: a column at a time, swiped sideways, with the next one peeking in. */
     .board {
-      gap: 10px;
-      padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
+      gap: 8px;
+      padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
       scroll-snap-type: x mandatory;
-      scroll-padding: 0 14px;
+      scroll-padding: 0 12px;
       overscroll-behavior-x: contain;
       scrollbar-width: none;
     }
     .board::-webkit-scrollbar { display: none; }
     .column {
-      flex: 0 0 min(calc(100vw - 42px), 420px);
+      flex: 0 0 min(calc(100vw - 38px), 420px);
       min-width: 0;
       max-width: none;
       scroll-snap-align: start;
     }
-    .column-header { padding: 8px 6px 8px 14px; gap: 6px; }
+    .column-header { padding: 4px 4px 4px 12px; gap: 4px; }
     .column-name { font-size: 12px; cursor: default; }
     .column-count { font-size: 12px; }
     .column-actions { gap: 0; }
-    .column-actions .iconbtn { width: 40px; height: 40px; }
+    .column-actions .iconbtn { width: 36px; height: 36px; }
     .column-actions .iconbtn svg { width: 16px; height: 16px; }
-    .column-add { padding: 10px 10px 4px; }
-    .column-add input { padding: 10px 12px; }
-    .column-tasks { gap: 8px; padding: 8px 10px; }
+    .column-add { padding: 8px 8px 2px; }
+    .column-add input { padding: 7px 10px; }
+    .column-tasks { gap: 6px; padding: 6px 8px; }
     .column-body { padding-bottom: 72px; } /* room to scroll the last card clear of the floating button */
     .column-empty { font-size: 14px; }
-    .task { gap: 10px; padding: 12px 12px 12px 10px; }
+    .task { gap: 8px; padding: 8px 10px 8px 8px; }
     .task:focus { outline: none; }
-    .task-check-col { width: 30px; gap: 5px; }
-    .task-check { width: 22px; height: 22px; margin-top: 0; border-radius: 5px; }
-    .task-check svg { width: 13px; height: 13px; }
-    .task-age { font-size: 10.5px; }
-    .task-subject { font-size: 15.5px; line-height: 1.4; }
-    .task-indicator, .due-chip { font-size: 12px; }
-    .completed-toggle { padding: 12px 4px; font-size: 12px; }
+    .task-check-col { width: 28px; gap: 3px; }
+    .task-check { width: 20px; height: 20px; margin-top: 0; border-radius: 5px; }
+    .task-check svg { width: 12px; height: 12px; }
+    .task-age { font-size: 10px; }
+    .task-subject { font-size: 15px; line-height: 1.35; }
+    .task-indicator { margin-top: 3px; }
+    .task-indicator, .due-chip { font-size: 11.5px; }
+    .completed-toggle { padding: 10px 4px; font-size: 11.5px; }
 
     /* Notes, full width. The pane's own collapsed state, from a desktop
        habit on this device, doesn't apply here. */
@@ -2042,29 +2043,41 @@
     .notes-pane.collapsed .nc-new-input { display: block; }
     .notes-pane.collapsed .notes-add-cat { display: inline-block; }
     .notes-head { display: none; } /* the tab says Notes */
-    .notes-list { padding: 10px 10px 12px; }
+    .notes-list { padding: 6px 8px 12px; }
     /* Phones scroll with thin bars of their own. */
     .column-body::-webkit-scrollbar, .notes-list::-webkit-scrollbar,
     .note-entries::-webkit-scrollbar { display: none; }
     .column-body, .notes-list, .note-entries { scrollbar-width: none; }
-    .nc-head { height: 44px; padding: 0 2px 0 10px; }
-    .nc-name { font-size: 12px; }
-    .nc-count { font-size: 12px; }
-    .nc-reveal, .nc-act { width: 40px; height: 40px; }
-    .note-row { height: 48px; padding: 0 12px 0 32px; font-size: 16px; }
-    .note-row-date, .note-row-cat { font-size: 12.5px; }
-    .note-row-count { font-size: 12px; line-height: 18px; }
-    .notes-add-cat { margin: 4px 14px calc(76px + env(safe-area-inset-bottom)); padding: 10px 12px; font-size: 15px; }
-    .nc-new-input { height: 44px; margin-bottom: calc(76px + env(safe-area-inset-bottom)); }
+    .nc-head { height: 38px; padding: 0 2px 0 8px; }
+    .nc-name { font-size: 11.5px; }
+    .nc-count { font-size: 11.5px; }
+    .nc-reveal, .nc-act { width: 36px; height: 36px; }
+    .note-row { height: 40px; padding: 0 10px 0 30px; font-size: 15px; }
+    .note-row-date, .note-row-cat { font-size: 12px; }
+    .note-row-count { font-size: 11.5px; line-height: 17px; }
+    .notes-add-cat { margin: 4px 12px calc(76px + env(safe-area-inset-bottom)); padding: 8px 10px; font-size: 14px; }
+    .nc-new-input { height: 40px; margin-bottom: calc(76px + env(safe-area-inset-bottom)); }
 
-    /* Windows: the big ones fill the screen, the small ones sit inset. In
-       screen units, as on the desktop: a window is a grid item, and a
-       percentage width there follows its content, not the screen. */
+    /* Windows. Cards and notes open over the dimmed board, with a strip of
+       it left at the top: tapping outside closes them, as does the round
+       button. Search fills the screen; the small windows sit inset. Sizes
+       are in screen units, as on the desktop: a window is a grid item, and
+       a percentage width there follows its content, not the screen. */
     .modal { padding: 12px; }
     .modal-panel { width: calc(100vw - 24px); max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
-    #task-modal, #note-modal, #search-modal { padding: 0; align-items: stretch; }
+    #task-modal, #note-modal {
+      padding: calc(36px + env(safe-area-inset-top)) 0 calc(8px + env(safe-area-inset-bottom));
+      align-items: stretch;
+    }
     #task-modal .modal-panel,
-    .modal-panel.note-panel,
+    .modal-panel.note-panel {
+      width: calc(100vw - max(8px, env(safe-area-inset-left)) - max(8px, env(safe-area-inset-right)));
+      max-width: none;
+      height: calc(100dvh - 44px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      max-height: none;
+      border-radius: 14px;
+    }
+    #search-modal { padding: 0; align-items: stretch; }
     .modal-panel.search-panel {
       width: 100vw;
       max-width: 100vw;
@@ -2075,15 +2088,23 @@
       padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
     }
     #quick-modal { align-items: start; padding-top: calc(10px + env(safe-area-inset-top)); }
-    .modal-close { top: calc(4px + env(safe-area-inset-top)); right: calc(4px + env(safe-area-inset-right)); }
-    .modal-star { top: calc(4px + env(safe-area-inset-top)); right: calc(46px + env(safe-area-inset-right)); }
-    .modal-private { top: calc(4px + env(safe-area-inset-top)); right: calc(88px + env(safe-area-inset-right)); }
-    .modal-private.note-private-btn { right: calc(46px + env(safe-area-inset-right)); }
+    .modal-close, .search-close {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--paper-2);
+      color: var(--ink-2);
+    }
+    .modal-close svg, .search-close svg { width: 20px; height: 20px; }
+    .modal-close { top: 8px; right: 8px; }
+    .modal-star { top: 8px; right: 52px; }
+    .modal-private { top: 8px; right: 96px; }
+    .modal-private.note-private-btn { right: 52px; }
     .task-footer {
       display: flex;
       flex-wrap: wrap;
       gap: 8px 10px;
-      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      padding: 10px 12px;
     }
     .task-footer-controls { flex: 1 1 100%; gap: 8px; }
     .task-footer-controls .select { flex: 1; min-width: 0; }
@@ -2092,7 +2113,7 @@
     .select, .due-input { height: 40px; }
 
     /* Task window */
-    .task-subject-input { padding: calc(16px + env(safe-area-inset-top)) 134px 8px 16px; font-size: 20px; }
+    .task-subject-input { padding: 16px 144px 8px 16px; font-size: 20px; }
     .md-toolbar { gap: 6px; padding: 0 8px 8px 10px; }
     .md-tab { padding: 10px; font-size: 12px; }
     .md-tab.active::after { bottom: -9px; }
@@ -2112,7 +2133,7 @@
     .quick-add-btn { display: inline-flex; margin-left: auto; padding: 0 22px; font-size: 15px; }
 
     /* Search */
-    .search-head { padding: calc(6px + env(safe-area-inset-top)) 4px 6px 16px; }
+    .search-head { padding: calc(6px + env(safe-area-inset-top)) 8px 6px 16px; }
     .search-close { display: inline-grid; }
     .search-results { padding: 6px 8px; }
     .search-hit { padding: 12px; }
@@ -2135,8 +2156,8 @@
     .confirm-actions .btn { height: 44px; padding: 0 18px; font-size: 14px; }
 
     /* Note window */
-    .note-heading { padding: calc(16px + env(safe-area-inset-top)) 92px 8px 16px; font-size: 20px; }
-    .note-archived-banner { margin: calc(12px + env(safe-area-inset-top)) 92px 0 16px; }
+    .note-heading { padding: 16px 100px 8px 16px; font-size: 20px; }
+    .note-archived-banner { margin: 12px 100px 0 16px; }
     .note-archived-banner + .note-heading { padding-top: 10px; }
     .note-heading-hint { padding: 0 16px 8px; }
     .note-bar { flex-wrap: wrap; gap: 6px; padding: 2px 10px 8px 16px; }
@@ -2155,13 +2176,13 @@
     .entry-drawing { margin: 2px -8px 0; }
     .entry-none { margin: 18px 16px; font-size: 15px; }
     .note-footer-actions { margin-left: auto; }
-    .note-drawing-bar { padding: calc(6px + env(safe-area-inset-top)) 10px 6px 16px; }
+    .note-drawing-bar { padding: 6px 10px 6px 16px; }
 
     /* Toasts sit above the floating button. */
     .toasts {
       left: max(12px, env(safe-area-inset-left));
       right: max(12px, env(safe-area-inset-right));
-      bottom: calc(126px + env(safe-area-inset-bottom));
+      bottom: calc(120px + env(safe-area-inset-bottom));
       transform: none;
     }
     .toast { min-width: 0; font-size: 14px; }
