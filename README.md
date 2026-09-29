@@ -37,6 +37,24 @@ app then opens in its own window, with its own taskbar and Alt-Tab entry;
 right-click the taskbar icon to pin it. On an iPhone, use Safari's **Share →
 Add to Home Screen**; on Android, **⋮ → Install app**.
 
+## On a phone
+
+On a phone the app rearranges itself. The board and the notes become two
+views, switched with the bar at the bottom, and a floating button adds a task
+or a note to whichever is showing. The board shows one column at a time: swipe
+sideways for the next. Cards, notes, drawings and search open full screen, the
+keyboard hints go, and anything that otherwise appears only on hover (a note
+entry's delete button, a notes category's buttons) stays visible. Opening a
+card doesn't bring up the keyboard; tapping into its text does.
+
+Dragging (cards, columns, notes, entries) is for the desktop. On a phone a card
+moves to another column with the category in its window.
+
+The phone layout follows the screen, not the device's name: it applies to a
+touch screen that is narrow, or short (a phone on its side). A tablet keeps the
+desktop layout, with the hover-only buttons shown. A computer with a mouse never
+changes, however narrow its window.
+
 ## Hosting it (Vercel)
 
 The app is a static site, so any static host works. It's quick once open:
@@ -465,6 +483,12 @@ and scroll to zoom. To move around, drag with Ctrl held (from anywhere, even
 on a shape), with Space held, or with the right mouse button; the canvas shows
 this in its corner. Undo and redo are buttons (Delete, Ctrl+Z and Ctrl+Y work
 too).
+
+With a finger: drag the background to move around, pinch to zoom, drag a box to
+move it, tap a box to show its dots and + buttons, and double-tap it to edit
+its text. A second finger landing mid-drag starts a pinch and puts the box
+back. The buttons are bigger, and the bar over a selection wraps rather than
+run off a narrow screen.
 
 **Copying out.** The last button in the zoom bar copies the whole drawing
 (folded-away branches stay out), cropped to what's there:

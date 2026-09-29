@@ -502,6 +502,18 @@ function injectStyles() {
   .tc-label-input { position: absolute; z-index: 3; transform: translate(-50%, -50%); width: 180px;
     padding: 5px 8px; font: inherit; font-size: 13px; text-align: center; border: 1px solid ${accent};
     border-radius: 6px; outline: none; background: #fff; box-shadow: 0 4px 14px rgba(26, 22, 18, .12); }
+  /* Fingers: bigger buttons. */
+  @media (pointer: coarse) {
+    .tc-btn { width: 40px; height: 40px; }
+    .tc-swatch { width: 28px; height: 28px; margin: 0 3px; }
+    .tc-zoom-level { min-width: 40px; }
+    .tc-menu button { padding: 12px 14px; font-size: 15px; }
+    .tc-menu { bottom: 68px; }
+    .tc-label-input { font-size: 16px; }
+    .tc-help { top: 10px; bottom: auto; left: 12px; right: 12px; max-width: none; text-align: center; }
+    /* The bar over a selection wraps rather than run off a narrow screen. */
+    .tc-ctx { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100% - 16px); }
+  }
   `;
   document.head.append(htmlEl("style", { id: "tc-styles" }, css));
 }
@@ -526,6 +538,13 @@ function create(container, opts) {
   let labelEdit = null;                   // { link, before } while typing a line's label
   let lastColor = 0;
   let spaceHeld = false;                  // Space+drag pans, like Figma and Miro
+  // Fingers (pointerType "touch"): one drags a box or moves around, two pinch
+  // to zoom, and two quick taps on a box edit its text. A mouse never gets here.
+  const coarse = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
+  const touches = new Map();              // fingers down, by pointer id
+  let pinch = null;                       // two fingers: where they started, and the view then
+  let lastTap = null;                     // the box tapped last, for a double tap
+  let touchEditAt = 0;                    // when a double tap started editing
   let pendingBefore = null;
   const undoStack = [], redoStack = [];
   const isMind = () => data.type === "mindmap";
@@ -603,9 +622,11 @@ function create(container, opts) {
     class: "tc-label-input", type: "text", maxlength: "80", placeholder: "Label", hidden: true
   });
   const emptyHint = htmlEl("div", { class: "tc-empty", hidden: true },
-    "Pick a rectangle or an oval on the left, then click the canvas to place it.");
-  const help = htmlEl("div", { class: "tc-help" },
-    "Move around: Ctrl+drag, Space+drag or right-drag \u00b7 Zoom: scroll");
+    coarse ? "Pick a rectangle or an oval on the left, then tap the canvas to place it."
+      : "Pick a rectangle or an oval on the left, then click the canvas to place it.");
+  const help = htmlEl("div", { class: "tc-help" }, coarse
+    ? "Move around: drag the background \u00b7 Zoom: pinch \u00b7 Edit text: double-tap"
+    : "Move around: Ctrl+drag, Space+drag or right-drag \u00b7 Zoom: scroll");
 
   root.append(svg, emptyHint, help, tools, zoomBar, copyMenu, flashEl, ctx, labelInput);
   container.append(root);
@@ -1591,6 +1612,15 @@ function create(container, opts) {
     const pad = 60;
     const x0 = Math.min(...gs.map(g => g.x)), x1 = Math.max(...gs.map(g => g.x + g.w));
     const y0 = Math.min(...gs.map(g => g.y)), y1 = Math.max(...gs.map(g => g.y + g.h));
+    if (coarse) {
+      // On a narrow touch screen the drawing sits between the toolbar on
+      // the left and the edge, not under the toolbar.
+      const padL = 76, padR = 20, room = w - padL - padR;
+      const z = clamp(Math.min(room / (x1 - x0), (h - pad * 2) / (y1 - y0)), ZOOM_MIN, 1.25);
+      view = { z, x: padL + (room - (x1 - x0) * z) / 2 - x0 * z, y: h / 2 - ((y0 + y1) / 2) * z };
+      render();
+      return;
+    }
     const z = clamp(Math.min((w - pad * 2) / (x1 - x0), (h - pad * 2) / (y1 - y0)), ZOOM_MIN, 1.25);
     view = { z, x: w / 2 - ((x0 + x1) / 2) * z, y: h / 2 - ((y0 + y1) / 2) * z };
     render();
@@ -1647,7 +1677,44 @@ function create(container, opts) {
     try { svg.setPointerCapture(e.pointerId); } catch (_) {}
   }
 
+  // Two fingers: whatever the first one started is undone, and the pair
+  // zooms and moves the view.
+  function startPinch() {
+    const g = gesture;
+    gesture = null;
+    root.classList.remove("tc-panning");
+    if (g && pendingBefore && (g.kind === "move" || g.kind === "resize")) data = JSON.parse(pendingBefore);
+    pendingBefore = null;
+    hover = null;
+    const [a, b] = [...touches.values()];
+    const r = svg.getBoundingClientRect();
+    pinch = {
+      d: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+      mx: (a.x + b.x) / 2 - r.left, my: (a.y + b.y) / 2 - r.top,
+      view: { ...view }
+    };
+    lastTap = null;
+    render();
+  }
+  function movePinch() {
+    const [a, b] = [...touches.values()];
+    const r = svg.getBoundingClientRect();
+    const v = pinch.view;
+    const z = clamp(v.z * (Math.hypot(b.x - a.x, b.y - a.y) || 1) / pinch.d, ZOOM_MIN, ZOOM_MAX);
+    // The point that was between the fingers stays between them.
+    const wx = (pinch.mx - v.x) / v.z, wy = (pinch.my - v.y) / v.z;
+    view.z = z;
+    view.x = (a.x + b.x) / 2 - r.left - wx * z;
+    view.y = (a.y + b.y) / 2 - r.top - wy * z;
+    scheduleRender();
+  }
+
   function onDown(e) {
+    if (e.pointerType === "touch") {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) { e.preventDefault(); startPinch(); return; }
+      if (touches.size > 2 || pinch) return;
+    }
     if (editing && editing.label.contains(e.target)) return; // clicking inside the text being typed
     root.focus({ preventScroll: true });
     finishEditing();
@@ -1711,6 +1778,7 @@ function create(container, opts) {
       } else if (!selNodes.has(n.id)) {
         selectOnly(n);
       }
+      if (e.pointerType === "touch") hover = n;
       begin();
       // On a mind map a box drags its whole branch along.
       const moving = isMind()
@@ -1729,6 +1797,16 @@ function create(container, opts) {
       render();
       return;
     }
+    // Empty canvas: a finger moves around, and lets go of the selection.
+    if (e.pointerType === "touch") {
+      hover = null;
+      lastTap = null;
+      clearSelection();
+      gesture = { kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
+      capture(e);
+      render();
+      return;
+    }
     // Empty canvas: drag a box to select.
     gesture = { kind: "marquee", p0: p, p1: p, base: e.shiftKey ? new Set(selNodes) : new Set() };
     if (!e.shiftKey) clearSelection();
@@ -1741,6 +1819,11 @@ function create(container, opts) {
   }
 
   function onMove(e) {
+    if (e.pointerType === "touch") {
+      if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch) { if (touches.size === 2) movePinch(); return; }
+      if (!gesture) return; // a finger doesn't hover
+    }
     const p = toWorld(e);
     if (!gesture) showPanReady(e.ctrlKey || e.metaKey || spaceHeld);
     if (!gesture) {
@@ -1807,6 +1890,10 @@ function create(container, opts) {
   }
 
   function onUp(e) {
+    if (e.pointerType === "touch") {
+      touches.delete(e.pointerId);
+      if (pinch) { if (touches.size < 2) pinch = null; return; }
+    }
     const g = gesture;
     if (!g) return;
     gesture = null;
@@ -1814,6 +1901,19 @@ function create(container, opts) {
     root.classList.remove("tc-panning");
     const p = toWorld(e);
 
+    // Two quick taps on the same box edit its text.
+    if (e.pointerType === "touch" && e.type === "pointerup" && g.kind === "move" && !g.moved) {
+      const now = Date.now();
+      if (lastTap && lastTap.id === g.grab.id && now - lastTap.t < 450) {
+        lastTap = null;
+        commit();
+        selectOnly(g.grab);
+        touchEditAt = now;
+        startEditing(g.grab);
+        return;
+      }
+      lastTap = { id: g.grab.id, t: now };
+    }
     if (g.kind === "move" && !g.moved && !e.shiftKey && selNodes.size > 1) {
       // A plain click on one of several selected boxes picks just that one.
       selectOnly(g.grab);
@@ -1864,6 +1964,7 @@ function create(container, opts) {
   // box under the pointer. So what was double-clicked is looked up by
   // position instead of trusting the event's target.
   function onDouble(e) {
+    if (Date.now() - touchEditAt < 800) return;
     for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
       if (!svg.contains(el)) continue;
       if (el.closest("[data-plus], [data-anchor], [data-fold], [data-handle], [data-end]")) return;
@@ -1959,7 +2060,10 @@ function create(container, opts) {
   svg.addEventListener("pointermove", onMove);
   svg.addEventListener("pointerup", onUp);
   svg.addEventListener("pointercancel", onUp);
-  svg.addEventListener("pointerleave", () => { if (!gesture && hover) { hover = null; scheduleRender(); } });
+  svg.addEventListener("pointerleave", e => {
+    if (e.pointerType === "touch") return;
+    if (!gesture && hover) { hover = null; scheduleRender(); }
+  });
   svg.addEventListener("dblclick", onDouble);
   svg.addEventListener("wheel", onWheel, { passive: false });
   svg.addEventListener("contextmenu", e => e.preventDefault());
