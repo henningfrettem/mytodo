@@ -376,7 +376,7 @@
      both classes to win on specificity rather than source order. */
   .modal-panel.search-panel {
     width: 640px;
-    max-width: 100%;
+    max-width: calc(100vw - 48px);
     max-height: 70vh;
     display: flex;
     flex-direction: column;
@@ -1013,7 +1013,10 @@
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-modal);
     width: 680px;
-    max-width: 100%;
+    /* Not 100%: the dialog is a grid item, and a grid track sizes itself to
+       a fixed-width item, so a percentage never makes a wide dialog shrink.
+       The 48px is .modal's padding on both sides. */
+    max-width: calc(100vw - 48px);
     max-height: calc(100vh - 48px);
     display: flex;
     flex-direction: column;
