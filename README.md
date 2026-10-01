@@ -280,8 +280,9 @@ card's title.
 
 Hover a line for a small arrow, or press `Alt+Enter` in it, to open its card on
 top of the note, which is where you set a due date, a description or a star.
-The card shows **From note: …** in its window, and a small note icon on the
-board; clicking the link opens the note at that line.
+The card shows **From note** and a link to that note at the top of its window,
+and a small note icon on the board; clicking the link opens the note at that
+line.
 
 Removing a line from the note deletes its card when you leave the entry, with
 Undo, which brings back the card and the line. While you're still typing,

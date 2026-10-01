@@ -1835,13 +1835,19 @@
     color: var(--mute);
   }
   .item-open:hover { color: var(--accent); border-color: var(--accent-soft); background: var(--card); }
-  .task-note-link {
-    font-size: inherit;
-    color: var(--accent);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
+  /* A card made from a line in a note shows that note above its title. */
+  .task-origin {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 22px 166px 0 30px;
+    font-size: 12px;
+    color: var(--mute);
   }
+  .task-origin > span { flex-shrink: 0; }
+  .task-origin > a.item-link { min-width: 0; }
+  .task-origin:not([hidden]) + .task-subject-input { padding-top: 8px; }
 
 
   /* ---------- Diagrams and mind maps in notes ---------- */
@@ -2248,6 +2254,7 @@
 
     /* Task window */
     .task-subject-input { padding: 16px 184px 8px 16px; font-size: 20px; }
+    .task-origin { padding: 16px 184px 0 16px; font-size: 13px; }
     .md-toolbar { gap: 6px; padding: 0 8px 8px 10px; }
     .md-tab { padding: 10px; font-size: 12px; }
     .md-tab.active::after { bottom: -9px; }
@@ -2527,6 +2534,7 @@
     <button class="iconbtn modal-star" id="task-star-modal" aria-label="Mark important" title="Mark important">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     </button>
+    <div class="task-origin" id="task-origin" hidden></div>
     <textarea id="task-subject" class="task-subject-input" placeholder="Task subject" rows="1" maxlength="500" spellcheck="false"></textarea>
     <div class="checklist" id="task-checklist" hidden>
       <div class="checklist-head">
@@ -4470,14 +4478,25 @@ function updateTaskMeta(task) {
   taskMeta.innerHTML = parts.map((p, i) =>
     i === 0 ? `<span>${escapeHtml(p)}</span>` : ` · <span>${escapeHtml(p)}</span>`
   ).join("");
+  updateTaskOrigin(task);
+}
+
+// The note a card was made from, at the top of the card, as a link to it
+// like the ones in text: opening it goes to the card's line in that note.
+function updateTaskOrigin(task) {
+  const origin = $("#task-origin");
   const link = noteForTask(task.id);
-  if (link) {
-    taskMeta.append(" \u00b7 ", el("button", {
-      class: "task-note-link",
-      title: "Open the note this card belongs to",
-      onclick: () => goToNoteItem(link.note, task.id)
-    }, noteHidden(link.note) ? "From a private note" : `From note: ${link.note.title || "Untitled"}`));
-  }
+  origin.innerHTML = "";
+  origin.hidden = !link;
+  if (!link) return;
+  const title = noteHidden(link.note) ? "Private note" : (link.note.title || "Untitled note");
+  const a = el("a", {
+    class: "item-link", href: itemLink("note", link.note.id),
+    title: "Open the note this card came from", "aria-label": title
+  });
+  a.dataset.title = title;
+  a.addEventListener("click", e => { e.preventDefault(); goToNoteItem(link.note, task.id); });
+  origin.append(el("span", {}, "From note"), a);
 }
 
 function populateCategorySelect(sel, currentId) {
