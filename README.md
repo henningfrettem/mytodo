@@ -351,6 +351,25 @@ reference to them.
 Worth doing occasionally. The free Supabase tier takes no automatic backups, so
 this export is the only copy of your data that isn't in the database.
 
+## Checklists
+
+A card can be a checklist: a shopping list, a packing list. In **New task**,
+switch on *checklist* before adding it, and the card opens ready for its items;
+any existing card gets one from the checklist button at the end of its
+toolbar. Type an item and press Enter for the next. Enter in an item moves to
+the next one, and Backspace in an empty item removes it.
+
+The card is done exactly when every item is: checking the last item completes
+it, and unchecking one, or adding a new one, reopens it. Ticking the card itself
+on the board checks every item, and unticking it unchecks them all, which
+starts a shopping list over for next time. On the board the card shows how far
+along it is (`3/5`), search finds it by its items, and the export includes
+them.
+
+Each item is a row of its own, so ticking items on two devices at once merges
+item by item. Until `supabase/schema.sql` has been run again to add the
+`checklist_items` table, cards are plain and the checklist controls don't show.
+
 ## Links to cards, notes and entries
 
 Every card, note and note entry has its own link. The link icon at the top of
@@ -458,7 +477,7 @@ app. Keeping them as a cold backup costs nothing.
 
 ## Data model
 
-Six tables in the `todo` schema. Columns are snake_case in Postgres and
+Seven tables in the `todo` schema. Columns are snake_case in Postgres and
 camelCase in the app; the mapping happens in one place on load and one on save.
 
 ```
@@ -467,6 +486,7 @@ categories  id, user_id, folder_id, name, private, position, updated_at
 tasks       id, user_id, folder_id, category_id, subject, description,
             completed, important, private, due_date, position,
             created_at, completed_at, updated_at
+checklist_items  id, user_id, task_id, text, done, position, created_at, updated_at
 
 note_categories  id, user_id, folder_id, name, private, position, updated_at
 notes            id, user_id, category_id, title, private, archived,

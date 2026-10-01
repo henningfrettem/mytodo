@@ -62,6 +62,21 @@ create table if not exists todo.tasks (
   updated_at    timestamptz not null default now()
 );
 
+-- ---------- Checklists ----------
+-- A card with items is a checklist (a shopping list, say). Each item is a row
+-- of its own so that ticking items on two devices at once merges item by item.
+
+create table if not exists todo.checklist_items (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  task_id     uuid not null references todo.tasks(id) on delete cascade,
+  text        text not null default '',
+  done        boolean not null default false,
+  position    integer not null default 0,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
 -- ---------- Notes ----------
 -- The pane to the left of the board. Each folder has its own note categories;
 -- a note is a heading plus a thread of timestamped entries, newest first.
@@ -110,6 +125,7 @@ create table if not exists todo.note_entries (
 -- Default privileges cover tables created after the grants at the top, but
 -- only for the role that set them; being explicit costs nothing.
 grant all on todo.note_categories, todo.notes, todo.note_entries to anon, authenticated, service_role;
+grant all on todo.checklist_items to anon, authenticated, service_role;
 
 -- ---------- Later additions ----------
 -- "create table if not exists" above is a no-op once the table exists, so
@@ -125,6 +141,7 @@ create index if not exists folders_user_pos    on todo.folders    (user_id, posi
 create index if not exists categories_fold_pos on todo.categories (folder_id, position);
 create index if not exists tasks_cat_pos       on todo.tasks      (category_id, position);
 create index if not exists tasks_user          on todo.tasks      (user_id);
+create index if not exists checklist_items_pos on todo.checklist_items (task_id, position);
 create index if not exists note_cats_fold_pos  on todo.note_categories (folder_id, position);
 create index if not exists notes_cat_pos       on todo.notes           (category_id, position);
 create index if not exists note_entries_pos    on todo.note_entries    (note_id, position);
@@ -145,6 +162,7 @@ drop trigger if exists tasks_touch      on todo.tasks;
 drop trigger if exists note_categories_touch on todo.note_categories;
 drop trigger if exists notes_touch           on todo.notes;
 drop trigger if exists note_entries_touch    on todo.note_entries;
+drop trigger if exists checklist_items_touch on todo.checklist_items;
 
 create trigger folders_touch    before update on todo.folders    for each row execute function todo.touch_updated_at();
 create trigger categories_touch before update on todo.categories for each row execute function todo.touch_updated_at();
@@ -152,6 +170,7 @@ create trigger tasks_touch      before update on todo.tasks      for each row ex
 create trigger note_categories_touch before update on todo.note_categories for each row execute function todo.touch_updated_at();
 create trigger notes_touch           before update on todo.notes           for each row execute function todo.touch_updated_at();
 create trigger note_entries_touch    before update on todo.note_entries    for each row execute function todo.touch_updated_at();
+create trigger checklist_items_touch before update on todo.checklist_items for each row execute function todo.touch_updated_at();
 
 -- ---------- Row Level Security ----------
 -- The publishable key is public by design and lives in a public repo, so RLS is
@@ -164,6 +183,7 @@ alter table todo.tasks      enable row level security;
 alter table todo.note_categories enable row level security;
 alter table todo.notes           enable row level security;
 alter table todo.note_entries    enable row level security;
+alter table todo.checklist_items enable row level security;
 
 drop policy if exists folders_owner    on todo.folders;
 drop policy if exists categories_owner on todo.categories;
@@ -171,6 +191,7 @@ drop policy if exists tasks_owner      on todo.tasks;
 drop policy if exists note_categories_owner on todo.note_categories;
 drop policy if exists notes_owner           on todo.notes;
 drop policy if exists note_entries_owner    on todo.note_entries;
+drop policy if exists checklist_items_owner on todo.checklist_items;
 
 create policy folders_owner    on todo.folders    for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy categories_owner on todo.categories for all using (user_id = auth.uid()) with check (user_id = auth.uid());
@@ -178,6 +199,7 @@ create policy tasks_owner      on todo.tasks      for all using (user_id = auth.
 create policy note_categories_owner on todo.note_categories for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy notes_owner           on todo.notes           for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy note_entries_owner    on todo.note_entries    for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy checklist_items_owner on todo.checklist_items for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- ---------- Realtime ----------
 -- The app listens for changes to these tables, so an edit on one device shows
@@ -190,7 +212,7 @@ begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     create publication supabase_realtime;
   end if;
-  foreach t in array array['folders', 'categories', 'tasks', 'note_categories', 'notes', 'note_entries'] loop
+  foreach t in array array['folders', 'categories', 'tasks', 'checklist_items', 'note_categories', 'notes', 'note_entries'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'todo' and tablename = t

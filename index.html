@@ -1910,6 +1910,80 @@
   .note-drawing-when { flex: 1; font-size: 12px; color: var(--mute); }
   .note-drawing-stage { flex: 1; min-height: 0; position: relative; }
 
+  /* ---------- Checklists ---------- */
+  .checklist {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px 26px 12px 30px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .checklist-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .checklist-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+  .checklist-progress { font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
+  .checklist-bar { height: 3px; margin-bottom: 6px; border-radius: 2px; background: var(--paper-2); overflow: hidden; }
+  .checklist-bar-fill { width: 0; height: 100%; background: var(--accent); transition: width .2s var(--r); }
+  .checklist-items { list-style: none; margin: 0; padding: 0; }
+  .checklist-item { display: flex; align-items: center; gap: 8px; min-height: 32px; border-radius: 5px; }
+  .checklist-item:hover { background: var(--paper); }
+  .checklist-check {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-left: 2px;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid var(--mute-2);
+    border-radius: 4px;
+    color: #fff;
+    transition: background .12s, border-color .12s;
+  }
+  .checklist-check:hover { border-color: var(--accent); }
+  .checklist-check svg { opacity: 0; }
+  .checklist-item.done .checklist-check { background: var(--accent); border-color: var(--accent); }
+  .checklist-item.done .checklist-check svg { opacity: 1; }
+  .checklist-text {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 2px;
+    border: 0;
+    background: transparent;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+  }
+  .checklist-text:focus { box-shadow: inset 0 -1px 0 var(--accent-soft); }
+  .checklist-item.done .checklist-text { color: var(--mute); text-decoration: line-through; }
+  .checklist-del { width: 26px; height: 26px; opacity: 0; }
+  .checklist-item:hover .checklist-del, .checklist-del:focus-visible { opacity: 1; }
+  .checklist-del:hover { color: var(--err); background: rgba(139, 46, 31, .08); }
+  .checklist-add {
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 8px 6px 30px;
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius);
+    background: transparent;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+  }
+  .checklist-add::placeholder { color: var(--mute); }
+  .checklist-add:focus { border-style: solid; border-color: var(--accent); background: var(--card); }
+  /* Below a checklist, the description makes do with less room. */
+  .modal-panel.has-checklist .task-desc,
+  .modal-panel.has-checklist .task-preview { min-height: 90px; }
+  .md-checklist { margin-left: 6px; }
+  .checklist-chip { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+  .checklist-chip.all { color: var(--ok); }
+  .quick-toggle-desc[aria-pressed="true"] { color: var(--accent); background: var(--accent-ghost); }
+
   /* ---------- Touch screens and phones ----------
      Two layers, and a desktop with a mouse matches neither, however narrow
      its window. (hover: none) is any touch screen, tablets included: what
@@ -1927,7 +2001,7 @@
     .column-actions, .nc-actions { opacity: 1; }
     .column-grip { opacity: .8; }
     .entry-grip { opacity: .6; }
-    .entry-del, .entry-link { opacity: .7; }
+    .entry-del, .entry-link, .checklist-del { opacity: .7; }
     .dropdown-item { min-height: 40px; }
   }
 
@@ -2138,6 +2212,13 @@
     .md-actions::-webkit-scrollbar { display: none; }
     .md-btn { flex-shrink: 0; width: 36px; height: 36px; }
     .task-desc, .task-preview { padding: 14px 16px; font-size: 16px; }
+    .checklist { padding: 2px 10px 10px 16px; }
+    .checklist-item { min-height: 44px; gap: 10px; }
+    .checklist-check { width: 22px; height: 22px; border-radius: 5px; }
+    .checklist-check svg { width: 13px; height: 13px; }
+    .checklist-text, .checklist-add { font-size: 16px; }
+    .checklist-add { padding: 9px 10px 9px 34px; }
+    .checklist-del { width: 38px; height: 38px; }
 
     /* Quick add: the footer's controls wrap, and a button adds. */
     .quick-input { padding: 16px 16px 10px; font-size: 18px; }
@@ -2402,6 +2483,15 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     </button>
     <textarea id="task-subject" class="task-subject-input" placeholder="Task subject" rows="1" maxlength="500" spellcheck="false"></textarea>
+    <div class="checklist" id="task-checklist" hidden>
+      <div class="checklist-head">
+        <span class="checklist-title">Checklist</span>
+        <span class="checklist-progress" id="checklist-progress"></span>
+      </div>
+      <div class="checklist-bar"><div class="checklist-bar-fill" id="checklist-bar-fill"></div></div>
+      <ul class="checklist-items" id="checklist-items"></ul>
+      <input class="checklist-add" id="checklist-add" type="text" maxlength="300" placeholder="Add an item" autocomplete="off" aria-label="Add an item">
+    </div>
     <div class="md-toolbar" id="md-toolbar" role="toolbar" aria-label="Formatting">
       <div class="md-tabs" role="tablist">
         <button class="md-tab active" data-mode="write" role="tab" aria-selected="true">Write</button>
@@ -2416,6 +2506,7 @@
         <div class="md-sep"></div>
         <button class="md-btn" data-md="image" title="Insert image" aria-label="Insert image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
       </div>
+      <button class="md-btn md-checklist" id="task-add-checklist" type="button" title="Add a checklist" aria-label="Add a checklist"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="m4.6 7 1.2 1.2 1.8-2"/><line x1="12" y1="7" x2="21" y2="7"/><rect x="3" y="14" width="6" height="6" rx="1.5"/><line x1="12" y1="17" x2="21" y2="17"/></svg></button>
     </div>
     <textarea id="task-desc" class="task-desc" placeholder="Notes, context, links... (supports **bold**, *italic*, and lists. Paste images directly.)"></textarea>
     <div id="task-preview" class="task-preview md" tabindex="-1" hidden></div>
@@ -2443,6 +2534,7 @@
         <select id="quick-category" class="select"></select>
         <input id="quick-due" class="due-input" type="date" aria-label="Due date" title="Due date">
         <button id="quick-desc-toggle" class="quick-toggle-desc">+ description</button>
+        <button id="quick-checklist-toggle" class="quick-toggle-desc" type="button" aria-pressed="false" title="Make it a checklist: add the items next">&#9744; checklist</button>
       </div>
       <span class="quick-hint"><kbd>Enter</kbd> to add, <kbd>Esc</kbd> to cancel</span>
       <button type="button" class="btn btn-primary quick-add-btn" id="quick-add-btn">Add</button>
@@ -2767,10 +2859,11 @@ async function selectAll(table, ...orderBy) {
 
 // Every row the user has, straight from the database, per table.
 async function fetchRows() {
-  const [f, c, t, nc, nn, ne, ek] = await Promise.all([
+  const [f, c, t, ci, nc, nn, ne, ek] = await Promise.all([
     selectAll("folders", "position"),
     selectAll("categories", "position"),
     selectAll("tasks", "category_id", "position"),
+    selectAll("checklist_items", "task_id", "position"),
     selectAll("note_categories", "position"),
     selectAll("notes", "category_id", "position"),
     selectAll("note_entries", "note_id", "position"),
@@ -2786,8 +2879,12 @@ async function fetchRows() {
   notesAvailable = !noteErr;
   entryKindsAvailable = notesAvailable && !ek.error;
   if (noteErr) console.warn("Notes unavailable:", noteErr.error.message);
+  // Checklists came later still: until their table exists, cards are plain.
+  checklistsAvailable = !ci.error;
+  if (ci.error) console.warn("Checklists unavailable:", ci.error.message);
   return {
     folders: f.data, categories: c.data, tasks: t.data,
+    checklist_items: checklistsAvailable ? ci.data : [],
     note_categories: notesAvailable ? nc.data : [],
     notes: notesAvailable ? nn.data : [],
     note_entries: notesAvailable ? ne.data : []
@@ -2805,6 +2902,14 @@ function stateFromRows(rows, preferFolderId) {
     noteCategories: rows.note_categories.filter(x => x.folder_id === row.id)
       .map(x => ({ id: x.id, name: x.name, private: !!x.private }))
   }));
+  // Rows arrive ordered by task and position, so each list is already in order.
+  const itemsByTask = new Map();
+  for (const row of rows.checklist_items || []) {
+    if (!itemsByTask.has(row.task_id)) itemsByTask.set(row.task_id, []);
+    itemsByTask.get(row.task_id).push({
+      id: row.id, text: row.text || "", done: !!row.done, createdAt: row.created_at
+    });
+  }
   const tasks = rows.tasks.map(row => ({
     id: row.id,
     folderId: row.folder_id,
@@ -2816,7 +2921,8 @@ function stateFromRows(rows, preferFolderId) {
     private: !!row.private,
     dueDate: row.due_date || null,
     createdAt: row.created_at,
-    completedAt: row.completed_at
+    completedAt: row.completed_at,
+    items: itemsByTask.get(row.id) || []
   }));
 
   // Rows arrive ordered by note and position, so each list is already in order.
@@ -2872,6 +2978,7 @@ function rowsFromState(s = state) {
   const catFolder = new Map(categories.map(c => [c.id, c.folder_id]));
   const perCat = new Map();
   const tasks = [];
+  const checklistItems = [];
   for (const t of s.tasks) {
     if (!catFolder.has(t.categoryId)) continue; // orphaned by a deleted category
     const i = perCat.get(t.categoryId) || 0;
@@ -2890,6 +2997,10 @@ function rowsFromState(s = state) {
       created_at: t.createdAt,
       completed_at: t.completedAt || null
     });
+    if (checklistsAvailable) (t.items || []).forEach((it, j) => checklistItems.push({
+      id: it.id, user_id: userId, task_id: t.id,
+      text: it.text || "", done: !!it.done, position: j, created_at: it.createdAt
+    }));
   }
 
   const noteCategories = [];
@@ -2926,7 +3037,10 @@ function rowsFromState(s = state) {
       created_at: e.createdAt
     }));
   }
-  return { folders, categories, tasks, note_categories: noteCategories, notes, note_entries: noteEntries };
+  return {
+    folders, categories, tasks, checklist_items: checklistItems,
+    note_categories: noteCategories, notes, note_entries: noteEntries
+  };
 }
 
 // save() is called from ~20 places that don't report what changed, so rather
@@ -2934,7 +3048,7 @@ function rowsFromState(s = state) {
 // It also self-heals: a failed write leaves the snapshot stale, so the next
 // flush simply retries the same rows.
 // Parents before children. Upserts run in this order, deletes in reverse.
-const SYNC_TABLES = ["folders", "categories", "tasks", "note_categories", "notes", "note_entries"];
+const SYNC_TABLES = ["folders", "categories", "tasks", "checklist_items", "note_categories", "notes", "note_entries"];
 let syncedSnapshot = Object.fromEntries(SYNC_TABLES.map(t => [t, []]));
 
 function diffRows(prev, next) {
@@ -3061,6 +3175,7 @@ function sortRows(rows) {
     folders: rows.folders.slice().sort(by("position", "id")),
     categories: rows.categories.slice().sort(by("position", "id")),
     tasks: rows.tasks.slice().sort(by("category_id", "position", "id")),
+    checklist_items: rows.checklist_items.slice().sort(by("task_id", "position", "id")),
     note_categories: rows.note_categories.slice().sort(by("position", "id")),
     notes: rows.notes.slice().sort(by("category_id", "position", "id")),
     note_entries: rows.note_entries.slice().sort(by("note_id", "position", "id"))
@@ -3095,7 +3210,7 @@ async function pullRemote() {
     if (changed.size) {
       const fresh = stateFromRows(sortRows(rows), state.activeFolderId);
       state.folders = adopt(state.folders, fresh.folders, ["categories", "noteCategories"]);
-      state.tasks = adopt(state.tasks, fresh.tasks);
+      state.tasks = adopt(state.tasks, fresh.tasks, ["items"]);
       state.notes = adopt(state.notes, fresh.notes, ["entries"]);
       state.activeFolderId = fresh.activeFolderId;
       noteLinkIndex = null;
@@ -3168,6 +3283,10 @@ function showRemoteChanges(changed) {
 
   // An open card: its fields follow, except the one being typed in.
   const task = !taskModal.hidden && openTaskId ? state.tasks.find(x => x.id === openTaskId) : null;
+  if (task && ((task.items || []).some(i => changed.has(i.id))
+      || [...changed].some(id => checklistItemsEl.querySelector(`[data-item-id="${CSS.escape(id)}"]`)))) {
+    if (!checklistEl.contains(document.activeElement)) renderChecklist(task);
+  }
   if (task && changed.has(task.id)) {
     const active = document.activeElement;
     if (active !== taskSubject) { taskSubject.value = task.subject || ""; autoResizeSubject(); }
@@ -3738,6 +3857,14 @@ function renderTaskCard(task) {
   if (task.description?.trim()) {
     indicators.push(el("span", { title: "Has notes" }, svg("lines", 11, 11)));
   }
+  const items = task.items || [];
+  if (items.length) {
+    const done = items.filter(i => i.done).length;
+    indicators.push(el("span", {
+      class: "checklist-chip" + (done === items.length ? " all" : ""),
+      title: `${done} of ${items.length} checked`
+    }, svg("checklist", 11, 11), el("span", {}, `${done}/${items.length}`)));
+  }
   if (/!\[[^\]]*\]\(sb:/.test(task.description || "")) {
     indicators.push(el("span", { title: "Has image" }, svg("image", 11, 11)));
   }
@@ -3981,8 +4108,12 @@ function createTask({ categoryId, subject, description = "", dueDate = null }) {
 function toggleTask(task) {
   task.completed = !task.completed;
   task.completedAt = task.completed ? new Date().toISOString() : null;
+  // A checklist follows its card: ticking the card ticks every item, and
+  // unticking it starts the list over (a shopping list, ready for next time).
+  for (const item of task.items || []) item.done = task.completed;
   save();
   renderBoard();
+  if (openTaskId === task.id) renderChecklist(task);
 }
 
 function toggleImportant(task) {
@@ -4211,8 +4342,11 @@ taskPreview.addEventListener("keydown", e => {
   if (e.key === " ") { e.preventDefault(); setTaskMode("write"); }
 });
 
-function openTaskModal(task) {
+function openTaskModal(task, { checklist = false } = {}) {
   openTaskId = task.id;
+  checklistShown = checklist;
+  checklistAdd.value = "";
+  renderChecklist(task);
   taskSubject.value = task.subject || "";
   taskDesc.value = task.description || "";
   taskDue.value = task.dueDate || "";
@@ -4225,8 +4359,15 @@ function openTaskModal(task) {
   // On a touch screen an empty description isn't focused, since the keyboard
   // would cover the card; the card behind lets go of focus instead.
   const holdKeyboard = !hasContent && touchUI.matches;
-  setTaskMode(hasContent ? "preview" : "write", { focus: !holdKeyboard });
-  if (holdKeyboard) document.activeElement.blur();
+  setTaskMode(hasContent ? "preview" : "write", { focus: !holdKeyboard && !checklist });
+  if (checklist) {
+    // Straight to the items. At once, while the tap still counts, so an
+    // iPhone shows its keyboard; and again after the window settles.
+    checklistAdd.focus();
+    setTimeout(() => checklistAdd.focus(), 10);
+  } else if (holdKeyboard) {
+    document.activeElement.blur();
+  }
   autoResizeSubject();
   focusTrap(taskModal);
 }
@@ -4244,6 +4385,7 @@ $("#task-private-modal").addEventListener("click", () => {
 });
 
 function closeTaskModal() {
+  addTypedChecklistItem(); // typed but not yet added: kept, not lost
   commitTaskEdits();
   openTaskId = null;
   taskModal.hidden = true;
@@ -4441,6 +4583,10 @@ function openQuickAdd() {
   quickDescArea.hidden = true;
   quickDescToggle.textContent = "+ description";
   populateCategorySelect(quickCategory, quickLastCategoryId || currentFolder().categories[0]?.id);
+  quickChecklist = false;
+  quickChecklistToggle.setAttribute("aria-pressed", "false");
+  quickChecklistToggle.innerHTML = "&#9744; checklist";
+  quickChecklistToggle.hidden = !checklistsAvailable;
   quickModal.hidden = false;
   if (touchUI.matches) quickSubject.focus();
   setTimeout(() => quickSubject.focus(), 10);
@@ -4454,8 +4600,11 @@ function submitQuickAdd() {
   quickLastCategoryId = catId;
   // Close first: renderBoard() skips focus restoration while a modal is open.
   const due = quickDue.value || null;
+  const asChecklist = quickChecklist;
   closeQuickAdd();
-  createTask({ categoryId: catId, subject, description: quickDesc.value, dueDate: due });
+  const task = createTask({ categoryId: catId, subject, description: quickDesc.value, dueDate: due });
+  // A checklist opens straight away, ready for its items.
+  if (asChecklist) openTaskModal(task, { checklist: true });
 }
 quickSubject.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitQuickAdd(); }
@@ -4470,6 +4619,127 @@ quickDescToggle.addEventListener("click", () => {
   if (hidden) setTimeout(() => quickDesc.focus(), 10);
 });
 $$("[data-close='quick']").forEach(e => e.addEventListener("click", closeQuickAdd));
+
+/* ---------- Checklists ---------- */
+// A card with items is a checklist: a shopping list, say. Its items are rows
+// of their own (checklist_items), so ticking items on two devices at once
+// merges item by item. The card is done exactly when every item is: checking
+// the last one completes it, an unchecked or new item reopens it, and ticking
+// or unticking the card itself sets every item (see toggleTask).
+const checklistEl = $("#task-checklist");
+const checklistItemsEl = $("#checklist-items");
+const checklistAdd = $("#checklist-add");
+const taskPanel = $("#task-modal .modal-panel");
+const quickChecklistToggle = $("#quick-checklist-toggle");
+let checklistShown = false; // open for this card even while it has no items
+let quickChecklist = false;
+
+function settleChecklist(task) {
+  const items = task.items || [];
+  if (!items.length) return;
+  const all = items.every(i => i.done);
+  if (all === !!task.completed) return;
+  task.completed = all;
+  task.completedAt = all ? new Date().toISOString() : null;
+  if (all) toast("Everything is checked, so the card is done.", { duration: 3000 });
+}
+
+function renderChecklist(task) {
+  const items = task.items || [];
+  const on = checklistsAvailable && (items.length > 0 || checklistShown);
+  checklistEl.hidden = !on;
+  taskPanel.classList.toggle("has-checklist", on);
+  $("#task-add-checklist").hidden = on || !checklistsAvailable;
+  const y = checklistEl.scrollTop;
+  checklistItemsEl.innerHTML = "";
+  for (const item of items) checklistItemsEl.append(renderChecklistItem(task, item));
+  const done = items.filter(i => i.done).length;
+  $("#checklist-progress").textContent = items.length ? `${done} of ${items.length}` : "";
+  $("#checklist-bar-fill").style.width = items.length ? (100 * done / items.length) + "%" : "0";
+  checklistEl.scrollTop = y;
+}
+
+function renderChecklistItem(task, item) {
+  const li = el("li", { class: "checklist-item" + (item.done ? " done" : ""), dataset: { itemId: item.id } });
+  const check = el("button", {
+    type: "button", class: "checklist-check", "aria-pressed": String(item.done),
+    "aria-label": item.done ? "Uncheck" : "Check",
+    onclick: () => toggleChecklistItem(task, item)
+  }, svg("check", 11, 11));
+  const text = el("input", {
+    type: "text", class: "checklist-text", value: item.text, maxlength: "300", "aria-label": "Item"
+  });
+  text.addEventListener("input", () => { item.text = text.value; save(); });
+  text.addEventListener("keydown", e => {
+    if (e.isComposing) return;
+    if (e.key === "Enter") {
+      // On down the list, and from the last item to the field for a new one.
+      e.preventDefault();
+      const inputs = $$(".checklist-text", checklistItemsEl);
+      (inputs[inputs.indexOf(text) + 1] || checklistAdd).focus();
+    } else if (e.key === "Backspace" && !text.value) {
+      e.preventDefault();
+      removeChecklistItem(task, item, { focusBefore: true });
+    }
+  });
+  const del = el("button", {
+    type: "button", class: "iconbtn checklist-del", title: "Remove item", "aria-label": "Remove item",
+    onclick: () => removeChecklistItem(task, item)
+  }, svg("x", 13, 13));
+  li.append(check, text, del);
+  return li;
+}
+
+function toggleChecklistItem(task, item) {
+  item.done = !item.done;
+  settleChecklist(task);
+  save();
+  renderChecklist(task);
+}
+
+function removeChecklistItem(task, item, { focusBefore = false } = {}) {
+  const at = (task.items || []).indexOf(item);
+  if (at < 0) return;
+  task.items.splice(at, 1);
+  settleChecklist(task);
+  save();
+  renderChecklist(task);
+  if (focusBefore) ($$(".checklist-text", checklistItemsEl)[at - 1] || checklistAdd).focus();
+}
+
+function addTypedChecklistItem() {
+  const text = checklistAdd.value.trim().slice(0, 300);
+  checklistAdd.value = "";
+  const task = openTaskId && state.tasks.find(t => t.id === openTaskId);
+  if (!text || !task) return false;
+  (task.items || (task.items = [])).push({ id: uuid(), text, done: false, createdAt: new Date().toISOString() });
+  settleChecklist(task); // a new, unchecked item reopens a finished list
+  save();
+  renderChecklist(task);
+  return true;
+}
+
+checklistAdd.addEventListener("keydown", e => {
+  if (e.key !== "Enter" || e.isComposing) return;
+  e.preventDefault();
+  if (addTypedChecklistItem()) {
+    const last = checklistItemsEl.lastElementChild;
+    if (last) last.scrollIntoView({ block: "nearest" });
+  }
+});
+$("#task-add-checklist").addEventListener("click", () => {
+  const task = openTaskId && state.tasks.find(t => t.id === openTaskId);
+  if (!task) return;
+  checklistShown = true;
+  renderChecklist(task);
+  checklistAdd.focus();
+});
+quickChecklistToggle.addEventListener("click", () => {
+  quickChecklist = !quickChecklist;
+  quickChecklistToggle.setAttribute("aria-pressed", String(quickChecklist));
+  quickChecklistToggle.innerHTML = quickChecklist ? "&#9745; checklist" : "&#9744; checklist";
+  quickSubject.focus();
+});
 
 /* ---------- Folders modal ---------- */
 const foldersModal = $("#folders-modal");
@@ -4599,7 +4869,8 @@ function exportBoard() {
         private: !!t.private,
         dueDate: t.dueDate || null,
         createdAt: t.createdAt,
-        completedAt: t.completedAt || null
+        completedAt: t.completedAt || null,
+        checklist: (t.items || []).map(i => ({ id: i.id, text: i.text || "", done: !!i.done }))
       })),
     notes: state.notes
       .filter(x => noteCatFolder.has(x.categoryId))
@@ -4735,7 +5006,8 @@ function findTasks(query) {
     if (!meta.has(t.categoryId)) continue;
     const subject = (t.subject || "").toLowerCase();
     const desc = (t.description || "").toLowerCase();
-    if (!subject.includes(q) && !desc.includes(q)) continue;
+    const items = (t.items || []).map(i => i.text).join("\n").toLowerCase();
+    if (!subject.includes(q) && !desc.includes(q) && !items.includes(q)) continue;
     hits.push(Object.assign({ kind: "task", task: t }, meta.get(t.categoryId)));
   }
   return hits.sort((a, b) => (a.task.completed ? 1 : 0) - (b.task.completed ? 1 : 0));
@@ -4816,7 +5088,7 @@ function renderSearch(opts) {
 
     // Only show a snippet when the match is in the notes, not the subject.
     const snippet = (t.subject || "").toLowerCase().includes(q)
-      ? "" : excerptAround(t.description || "", q);
+      ? "" : excerptAround([t.description || "", ...(t.items || []).map(i => i.text)].join("\n"), q);
     const excerpt = snippet ? el("div", { class: "search-hit-excerpt" }) : null;
     if (excerpt) excerpt.append(markMatch(snippet, q));
 
@@ -5049,6 +5321,7 @@ const noteLinkBar = $("#note-link-bar");
 const noteLinkInput = $("#note-link-input");
 
 let notesAvailable = true;   // false when the notes tables don't exist yet
+let checklistsAvailable = true; // false until the checklist_items table exists
 let openNoteId = null;
 let notesDrag = null;        // { kind: "note" | "ncat" | "entry", id }
 let notesRenderedFor = null; // folder id the pane was last drawn for
@@ -7433,6 +7706,7 @@ function svg(name, w = 16, h = 16) {
     folder: `<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`,
     gear: `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
     lines: `<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="17" x2="18" y2="17"/>`,
+    checklist: `<rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="m4.6 7 1.2 1.2 1.8-2"/><line x1="12" y1="7" x2="21" y2="7"/><rect x="3" y="14" width="6" height="6" rx="1.5"/><line x1="12" y1="17" x2="21" y2="17"/>`,
     image: `<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5-5-6 6-3-3-4 4"/>`,
     star: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
     alert: `<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
