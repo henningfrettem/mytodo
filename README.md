@@ -384,6 +384,14 @@ you to sign in first and then opens the item. The `#` part is taken off the
 address once read, so a reload doesn't open it again. A link to something since
 deleted says so.
 
+Pasted into a note, or into a card's description, such a link shows as the
+item itself: a link icon and the card's or note's title as it is now (an entry
+shows its note's title and date), struck through for a card that's done,
+*Private* for a private one, and *Deleted* once it's gone. Clicking it opens
+the item right here instead of in a new tab. A bare address becomes one when
+you leave the entry, and in a card it shows in Preview. Only the look changes:
+what's saved is still the plain link.
+
 Where a link opens is up to the device. On a computer with the app installed
 from Chrome, links open in the app's own window if its *Open supported links*
 setting is on (the manifest's `launch_handler` hands the link to the window

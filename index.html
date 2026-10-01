@@ -1910,6 +1910,49 @@
   .note-drawing-when { flex: 1; font-size: 12px; color: var(--mute); }
   .note-drawing-stage { flex: 1; min-height: 0; position: relative; }
 
+  /* ---------- Links to cards, notes and entries, in text ---------- */
+  /* The address stays in the text, unseen (font-size 0); what shows is the
+     item's title, from data-title, after a link icon. */
+  .md a.item-link, a.item-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    margin: 0 1px;
+    padding: 0 8px 0 6px;
+    border: 1px solid var(--rule-soft);
+    border-radius: 11px;
+    background: var(--paper);
+    color: var(--ink-2);
+    font-size: 0;
+    line-height: 20px;
+    text-decoration: none;
+    vertical-align: 1px;
+    cursor: pointer;
+    user-select: none;
+  }
+  a.item-link::before {
+    content: "";
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/></svg>") center / contain no-repeat;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/></svg>") center / contain no-repeat;
+  }
+  a.item-link::after {
+    content: attr(data-title);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  a.item-link:hover { border-color: var(--accent-soft); background: var(--accent-ghost); }
+  a.item-link.done::after { color: var(--mute); text-decoration: line-through; }
+  a.item-link.missing { color: var(--mute); cursor: default; }
+  a.item-link.missing::before { background: var(--mute-2); }
+
   /* ---------- Checklists ---------- */
   .checklist {
     flex: 0 1 auto;
@@ -2213,6 +2256,8 @@
     .md-btn { flex-shrink: 0; width: 36px; height: 36px; }
     .task-desc, .task-preview { padding: 14px 16px; font-size: 16px; }
     .checklist { padding: 2px 10px 10px 16px; }
+    .md a.item-link, a.item-link { line-height: 24px; padding: 0 10px 0 8px; border-radius: 13px; }
+    a.item-link::after { font-size: 15px; }
     .checklist-item { min-height: 44px; gap: 10px; }
     .checklist-check { width: 22px; height: 22px; border-radius: 5px; }
     .checklist-check svg { width: 13px; height: 13px; }
@@ -4330,12 +4375,22 @@ async function renderTaskPreview() {
   }
   taskPreview.classList.remove("is-empty");
   taskPreview.innerHTML = renderMarkdown(src);
+  decorateItemLinks(taskPreview);
   await hydrateImages(taskPreview);
 }
 
 $$(".md-tab").forEach(t => t.addEventListener("click", () => setTaskMode(t.dataset.mode)));
 taskPreview.addEventListener("click", e => {
-  if (e.target.closest("a")) return;
+  const a = e.target.closest("a");
+  if (a) {
+    // A link to a card, note or entry opens it here, not in a new tab.
+    const link = itemLinkOf(a.getAttribute("href"));
+    if (link) {
+      e.preventDefault();
+      if (findLinkedItem(link)) openItemLink(link);
+    }
+    return;
+  }
   setTaskMode("write");
 });
 taskPreview.addEventListener("keydown", e => {
@@ -6153,6 +6208,7 @@ function renderEntry(note, entry) {
   });
   body.append(cleanNoteHtml(entry.body));
   autolinkNode(body);
+  decorateItemLinks(body);
   decorateTaskItems(body, { syncText: true });
   hydrateNoteImages(body);
 
@@ -6168,6 +6224,7 @@ function renderEntry(note, entry) {
     // is holding on to; the link bar hands focus straight back anyway.
     if (e.relatedTarget !== noteLinkInput) {
       autolinkNode(body);
+      decorateItemLinks(body);
       reconcileTaskItems(note, entry, body);
     }
     commitEntry(entry, body);
@@ -6181,6 +6238,8 @@ function renderEntry(note, entry) {
     if (!a || !body.contains(a)) return;
     e.preventDefault();
     const href = safeHref(a.getAttribute("href"));
+    const link = href && itemLinkOf(href);
+    if (link) { if (findLinkedItem(link)) openItemLink(link); return; }
     if (href) window.open(href, "_blank", "noopener,noreferrer");
   });
   body.addEventListener("paste", e => handleEntryPaste(e, entry, body));
@@ -6892,6 +6951,7 @@ function refreshOpenNoteLinks() {
     const body = $(".entry-body", art);
     const entry = note.entries.find(e => e.id === art.dataset.entryId);
     if (!body || !entry) continue;
+    decorateItemLinks(body); // a card opened from here may have been renamed
     if (decorateTaskItems(body, { syncText: document.activeElement !== body })) commitEntry(entry, body);
   }
 }
@@ -7190,6 +7250,66 @@ function openPendingLink() {
   try { link = JSON.parse(sessionStorage.getItem(PENDING_LINK_KEY) || "null"); } catch {}
   sessionStorage.removeItem(PENDING_LINK_KEY);
   if (link) openItemLink(link);
+}
+
+// An address naming an item in this app: this app's own, with #card=,
+// #note= or #entry=, or any other address with one of those naming an item
+// that's here (the same link opened under another of the app's addresses).
+function itemLinkOf(href) {
+  let u;
+  try { u = new URL(href, location.href); } catch { return null; }
+  const link = parseItemLink(u.hash);
+  if (!link) return null;
+  const ours = u.origin === location.origin && u.pathname === location.pathname;
+  return ours || findLinkedItem(link) ? link : null;
+}
+function findLinkedItem({ kind, id }) {
+  if (!state) return null;
+  if (kind === "card") {
+    const task = state.tasks.find(t => t.id === id);
+    return task ? { task } : null;
+  }
+  if (kind === "note") {
+    const note = state.notes.find(x => x.id === id);
+    return note ? { note } : null;
+  }
+  for (const note of state.notes) {
+    const entry = note.entries.find(e => e.id === id);
+    if (entry) return { note, entry };
+  }
+  return null;
+}
+
+// A link to a card, note or entry in a note or a card shows as that item: a
+// link icon and its title as it is now (or that it's private, or gone), and
+// opens it here rather than in a new tab. Only the look changes; what's saved
+// is still the plain link, since saving keeps nothing but the href.
+function decorateItemLinks(root) {
+  if (!state) return;
+  for (const a of root.querySelectorAll("a[href]")) {
+    const link = itemLinkOf(a.getAttribute("href"));
+    if (!link) continue;
+    const found = findLinkedItem(link);
+    const word = LINK_WORDS[link.kind];
+    let title, done = false;
+    if (!found) {
+      title = `Deleted ${word}`;
+    } else if (found.task) {
+      const cat = state.folders.flatMap(f => f.categories || []).find(c => c.id === found.task.categoryId);
+      title = found.task.private || (cat && categoryHidden(cat)) ? "Private card" : (found.task.subject || "Untitled card");
+      done = !!found.task.completed;
+    } else {
+      const name = noteHidden(found.note) ? "Private note" : (found.note.title || "Untitled note");
+      title = found.entry
+        ? `${name} \u00b7 ${new Date(found.entry.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }).replace("Sept", "Sep")}`
+        : name;
+    }
+    a.className = "item-link" + (done ? " done" : "") + (found ? "" : " missing");
+    a.dataset.title = title;
+    a.setAttribute("aria-label", title);
+    a.title = found ? `Open this ${word}` : `That ${word} doesn't exist any more`;
+    a.contentEditable = "false";
+  }
 }
 
 function showFolderOf(folder) {
